@@ -3,9 +3,7 @@ import 'package:bot_toast/src/toast_widget/animation.dart';
 import 'package:bot_toast/src/toast_widget/notification.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:nmobile/consts/colors.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/utils/extensions.dart';
+import 'package:nmobile/theme/theme.dart';
 
 class NotificationDialog extends StatefulWidget {
   @override
@@ -76,20 +74,32 @@ class _NotificationDialogState extends State<NotificationDialog> {
       decoration: BoxDecoration(color: widget.color ?? DefaultTheme.primaryColor),
       child: SafeArea(
         bottom: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            (widget.icon ?? SvgPicture.asset('assets/wallet/dui_gou_yuan_quan.svg', color: Colours.white)).pad(t: 16),
-            _buildText(context),
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              child: SvgPicture.asset('assets/icons/x_cha.svg', color: Colours.white, width: 12, height: 12).center.sized(w: 48, h: 48),
-              onTap: widget.cancelFunc,
-            ),
-          ],
-        ).pad(l: 24, t: 3, r: 6, b: 0),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 24, top: 3, right: 6, bottom: 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: (widget.icon ?? SvgPicture.asset('assets/icons/check.svg', color: DefaultTheme.backgroundLightColor)),
+              ),
+              _buildText(context),
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: SvgPicture.asset('assets/icons/close.svg', color: DefaultTheme.backgroundLightColor, width: 12, height: 12),
+                  ),
+                ),
+                onTap: widget.cancelFunc,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -100,14 +110,20 @@ class _NotificationDialogState extends State<NotificationDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            widget.title,
-            style: TextStyle(fontSize: DefaultTheme.h4FontSize, fontWeight: FontWeight.bold, color: Colours.white),
-          ).pad(l: 16, t: 14),
-          Text(
-            widget.content,
-            style: TextStyle(fontSize: DefaultTheme.bodySmallFontSize, color: Colours.white),
-          ).pad(l: 16, t: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 14),
+            child: Text(
+              widget.title,
+              style: TextStyle(fontSize: DefaultTheme.h4FontSize, fontWeight: FontWeight.bold, color: DefaultTheme.backgroundLightColor),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 6),
+            child: Text(
+              widget.content,
+              style: TextStyle(fontSize: DefaultTheme.bodySmallFontSize, color: DefaultTheme.backgroundLightColor),
+            ),
+          ),
         ],
       ),
     );

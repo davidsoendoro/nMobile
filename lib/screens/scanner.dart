@@ -1,10 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:nmobile/components/button_icon.dart';
-import 'package:nmobile/components/button.dart';
-import 'package:nmobile/consts/theme.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'package:qr_code_scanner/qr_scanner_overlay_shape.dart';
+
+import '../components/button/button_icon.dart';
+import '../theme/theme.dart';
 
 const flash_on = "FLASH ON";
 const flash_off = "FLASH OFF";
@@ -15,6 +16,7 @@ class ScannerScreen extends StatefulWidget {
   static const String routeName = '/scanner';
 
   ScannerScreen({Key key}) : super(key: key);
+
   @override
   ScannerScreenState createState() => ScannerScreenState();
 }
@@ -40,6 +42,11 @@ class ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _onQRViewCreated(QRViewController controller) {
+    // fixme, when nav from import seed screen is black
+    if(Platform.isAndroid) {
+      controller.flipCamera();
+      controller.flipCamera();
+    }
     this.controller = controller;
 
     controller.scannedDataStream.listen((scanData) {
@@ -64,7 +71,7 @@ class ScannerScreenState extends State<ScannerScreen> {
             key: qrKey,
             onQRViewCreated: _onQRViewCreated,
             overlay: QrScannerOverlayShape(
-              borderColor: DefaultTheme.primaryColor,
+              borderColor: DefaultTheme.lineColor,
               borderRadius: 10,
               borderLength: 30,
               borderWidth: 10,

@@ -1,0 +1,3 @@
+[submodule "plugins/nkn-sdk-flutter"]
+	path = plugins/nkn-sdk-flutter
+	url = https://github.com/nknorg/nkn-sdk-flutter.git

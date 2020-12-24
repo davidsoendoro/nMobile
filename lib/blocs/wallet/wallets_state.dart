@@ -14,11 +14,5 @@ class WalletsLoaded extends WalletsState {
   final List<WalletSchema> wallets;
 
   const WalletsLoaded([this.wallets = const []]);
-
-  @override
-  List<Object> get props => [wallets];
-
-  @override
-  String toString() => 'WalletsLoaded { wallets: $wallets }';
 }
 

@@ -1,49 +1,52 @@
 import 'dart:convert';
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-import 'package:nmobile/blocs/account_depends_bloc.dart';
 import 'package:nmobile/blocs/wallet/filtered_wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/filtered_wallets_event.dart';
 import 'package:nmobile/blocs/wallet/filtered_wallets_state.dart';
 import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/wallets_state.dart';
-import 'package:nmobile/components/button.dart';
+import 'package:nmobile/components/button/button.dart';
 import 'package:nmobile/components/dialog/modal.dart';
-import 'package:nmobile/components/header/header.dart';
 import 'package:nmobile/components/label.dart';
 import 'package:nmobile/components/layout/expansion_layout.dart';
+import 'package:nmobile/components/layout/header.dart';
 import 'package:nmobile/components/textbox.dart';
 import 'package:nmobile/components/wallet/dropdown.dart';
-import 'package:nmobile/consts/colors.dart';
-import 'package:nmobile/consts/theme.dart';
+import 'package:nmobile/generated/l10n.dart';
 import 'package:nmobile/helpers/format.dart';
-import 'package:nmobile/helpers/utils.dart';
-import 'package:nmobile/helpers/validation.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/model/eth_erc20_token.dart';
+import 'package:nmobile/helpers/nkn_erc20.dart';
+import 'package:nmobile/helpers/validator.dart';
 import 'package:nmobile/schemas/wallet.dart';
 import 'package:nmobile/screens/scanner.dart';
 import 'package:nmobile/services/task_service.dart';
-import 'package:nmobile/utils/extensions.dart';
-import 'package:nmobile/utils/image_utils.dart';
-import 'package:nmobile/utils/log_tag.dart';
-import 'package:oktoast/oktoast.dart';
+import 'package:nmobile/storages/wallet.dart';
+import 'package:nmobile/theme/theme.dart';
+import 'package:nmobile/utils/assets.dart';
+import 'package:nmobile/utils/wallet.dart';
+import 'package:web3dart/web3dart.dart';
 
 class SendErc20Screen extends StatefulWidget {
   static const String routeName = '/wallet/send_erc_20';
-  final WalletSchema arguments;
 
-  SendErc20Screen({this.arguments});
+  final arguments;
+  WalletSchema wallet;
+
+  SendErc20Screen({this.arguments}) {
+    wallet = arguments['wallet'];
+  }
 
   @override
   _SendErc20ScreenState createState() => _SendErc20ScreenState();
 }
 
-class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBloc, Tag {
+class _SendErc20ScreenState extends State<SendErc20Screen> {
   final GetIt locator = GetIt.instance;
+  WalletStorage _walletStorage = WalletStorage();
   GlobalKey _formKey = new GlobalKey<FormState>();
   bool _formValid = false;
   TextEditingController _amountController = TextEditingController();
@@ -67,13 +70,10 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
   int _sliderMaxGasMax = 300000;
   bool _ethTrueTokenFalse = false;
 
-  // ignore: non_constant_identifier_names
-  LOG _LOG;
 
   _initAsync() async {
     final gasPrice = await EthErc20Client().getGasPrice;
     _gasPriceInGwei = (gasPrice.gwei * 0.8).round();
-    _LOG.i('gasPrice:$_gasPriceInGwei GWei');
     _updateFee();
   }
 
@@ -107,7 +107,6 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
   @override
   void initState() {
     super.initState();
-    _LOG = LOG(tag);
     _initAsync();
     locator<TaskService>().queryNknWalletBalanceTask();
     _filteredWalletsBloc = BlocProvider.of<FilteredWalletsBloc>(context);
@@ -118,36 +117,38 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
     if ((_formKey.currentState as FormState).validate()) {
       (_formKey.currentState as FormState).save();
 
-      var password = await wallet.getPassword();
+      String password = await _walletStorage.authPassword(widget.wallet.address);
       if (password != null) {
-        final result = transferAction(password);
+        String keystore = await _walletStorage.getKeystore(widget.wallet.address);
+        final result = transferAction(keystore, password);
         Navigator.pop(context, result);
       }
     }
   }
 
-  Future<bool> transferAction(password) async {
+  Future<bool> transferAction(String keystore, String password) async {
     try {
-      final ethWallet = await Ethereum.restoreWalletSaved(schema: wallet, password: password);
+      final ethWallet = Wallet.fromJson(keystore, password);
       final ethClient = EthErc20Client();
       final txHash = _ethTrueTokenFalse
-          ? await ethClient.sendEthereum(ethWallet.credt, address: _sendTo, amountEth: _amount, gasLimit: _maxGas, gasPriceInGwei: _gasPriceInGwei)
-          : await ethClient.sendNknToken(ethWallet.credt, address: _sendTo, amountNkn: _amount, gasLimit: _maxGas, gasPriceInGwei: _gasPriceInGwei);
+          ? await ethClient.sendEthereum(ethWallet.privateKey, address: _sendTo, amountEth: _amount, gasLimit: _maxGas, gasPriceInGwei: _gasPriceInGwei)
+          : await ethClient.sendNknToken(ethWallet.privateKey, address: _sendTo, amountNkn: _amount, gasLimit: _maxGas, gasPriceInGwei: _gasPriceInGwei);
       return txHash.length > 10;
     } catch (e) {
-      showToast(e.message);
+      BotToast.showText(text: e.message);
       return false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    S _localizations = S.of(context);
     return Scaffold(
       appBar: Header(
-        title: NL10ns.of(context).send_eth,
+        title: _localizations.send_eth,
         backgroundColor: DefaultTheme.backgroundColor4,
-        action: IconButton(
-          icon: loadAssetIconsImage(
+        actions: [IconButton(
+          icon: assetIcon(
             'scan',
             width: 24,
             color: DefaultTheme.backgroundLightColor,
@@ -171,13 +172,13 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
               await ModalDialog.of(context).show(
                 height: 240,
                 content: Label(
-                  NL10ns.of(context).error_unknown_nkn_qrcode,
+                  _localizations.error_unknown_nkn_qrcode,
                   type: LabelType.bodyRegular,
                 ),
               );
             }
           },
-        ),
+        )],
       ),
       body: ConstrainedBox(
         constraints: BoxConstraints.expand(),
@@ -246,20 +247,18 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-//                                                  Label(
-//                                                    NMobileLocalizations.of(context).from,
-//                                                    type: LabelType.h4,
-//                                                    textAlign: TextAlign.start,
-//                                                  ),
                                                   WalletDropdown(
-                                                    title: NL10ns.of(context).select_asset_to_receive,
-                                                    schema: widget.arguments ?? wallet,
+                                                    title: _localizations.select_asset_to_receive,
+                                                    schema: widget.wallet ?? wallet,
                                                   ),
-                                                  Label(
-                                                    NL10ns.of(context).amount,
-                                                    type: LabelType.h4,
-                                                    textAlign: TextAlign.start,
-                                                  ).pad(t: 20),
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 20),
+                                                    child: Label(
+                                                      _localizations.amount,
+                                                      type: LabelType.h4,
+                                                      textAlign: TextAlign.start,
+                                                    ),
+                                                  ),
                                                   Textbox(
                                                     padding: const EdgeInsets.only(bottom: 4),
                                                     controller: _amountController,
@@ -270,7 +269,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                     },
                                                     validator: Validator.of(context).amount(),
                                                     showErrorMessage: false,
-                                                    hintText: NL10ns.of(context).enter_amount,
+                                                    hintText: _localizations.enter_amount,
                                                     suffixIcon: GestureDetector(
                                                       onTap: () {
                                                         _ethTrueTokenFalse = !_ethTrueTokenFalse;
@@ -281,15 +280,15 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                         width: 20,
                                                         alignment: Alignment.centerRight,
                                                         child: Label(
-                                                          _ethTrueTokenFalse ? NL10ns.of(context).eth : NL10ns.of(context).nkn,
-                                                          color: wallet.type == WalletSchema.ETH_WALLET ? Colours.blue_0f : null,
+                                                          _ethTrueTokenFalse ? _localizations.eth : _localizations.nkn,
+                                                          color: wallet.type == WalletSchema.ETH_WALLET ? DefaultTheme.primaryColor : null,
                                                           type: wallet.type == WalletSchema.ETH_WALLET ? LabelType.bodyRegular : LabelType.label,
                                                         ),
                                                       ),
                                                     ),
                                                     textInputAction: TextInputAction.next,
                                                     keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                                    inputFormatters: [WhitelistingTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'))],
+                                                    inputFormatters: [FilteringTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'), allow: true)],
                                                   ),
                                                   Padding(
                                                     padding: const EdgeInsets.only(bottom: 20),
@@ -298,7 +297,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                       children: [
                                                         Row(
                                                           children: [
-                                                            Label(NL10ns.of(context).available + ': '),
+                                                            Label(_localizations.available + ': '),
                                                             BlocBuilder<WalletsBloc, WalletsState>(
                                                               builder: (context, state) {
                                                                 if (state is WalletsLoaded) {
@@ -318,7 +317,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                         ),
                                                         InkWell(
                                                           child: Label(
-                                                            NL10ns.of(context).max,
+                                                            _localizations.max,
                                                             color: DefaultTheme.primaryColor,
                                                             type: LabelType.bodyRegular,
                                                           ),
@@ -330,7 +329,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                     ),
                                                   ),
                                                   Label(
-                                                    NL10ns.of(context).send_to,
+                                                    _localizations.send_to,
                                                     type: LabelType.h4,
                                                     textAlign: TextAlign.start,
                                                   ),
@@ -343,7 +342,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                     },
                                                     validator: Validator.of(context).ethAddress(),
                                                     textInputAction: TextInputAction.next,
-                                                    hintText: NL10ns.of(context).enter_receive_address,
+                                                    hintText: _localizations.enter_receive_address,
                                                   ),
                                                   Padding(
                                                     padding: const EdgeInsets.only(bottom: 20),
@@ -361,14 +360,14 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                             crossAxisAlignment: CrossAxisAlignment.center,
                                                             children: <Widget>[
                                                               Label(
-                                                                NL10ns.of(context).fee,
+                                                                _localizations.fee,
                                                                 color: DefaultTheme.primaryColor,
                                                                 type: LabelType.h4,
                                                                 textAlign: TextAlign.start,
                                                               ),
                                                               RotatedBox(
                                                                 quarterTurns: _showFeeLayout ? 2 : 0,
-                                                                child: loadAssetIconsImage('down', color: DefaultTheme.primaryColor, width: 20),
+                                                                child: assetIcon('down', color: DefaultTheme.primaryColor, width: 20),
                                                               ),
                                                             ],
                                                           ),
@@ -388,7 +387,6 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                               if (gasPrice > _sliderGasPriceMax) {
                                                                 gasPrice = _sliderGasPriceMax;
                                                               }
-                                                              _LOG.w('fee field | gasPrice:$gasPrice');
                                                               if (_gasPriceInGwei != gasPrice) {
                                                                 _gasPriceInGwei = gasPrice;
                                                                 _updateFee();
@@ -401,8 +399,8 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                                 alignment: Alignment.centerRight,
                                                                 child: Label(
                                                                   wallet.type == WalletSchema.ETH_WALLET
-                                                                      ? NL10ns.of(context).eth
-                                                                      : NL10ns.of(context).nkn,
+                                                                      ? _localizations.eth
+                                                                      : _localizations.nkn,
                                                                   type: LabelType.label,
                                                                 ),
                                                               ),
@@ -411,7 +409,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                               decimal: true,
                                                             ),
                                                             textInputAction: TextInputAction.done,
-                                                            inputFormatters: [WhitelistingTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'))],
+                                                            inputFormatters: [FilteringTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'), allow: true)],
                                                           ),
                                                         ),
                                                       ],
@@ -423,11 +421,14 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                       children: [
                                                         Row(
                                                           children: [
-                                                            Label(
-                                                              NL10ns.of(context).gas_price,
-                                                              type: LabelType.h4,
-                                                              fontWeight: FontWeight.w600,
-                                                            ).pad(r: 16),
+                                                            Padding(
+                                                              padding: const EdgeInsets.only(right: 16),
+                                                              child: Label(
+                                                                _localizations.gas_price,
+                                                                type: LabelType.h4,
+                                                                fontWeight: FontWeight.w600,
+                                                              ),
+                                                            ),
                                                             Expanded(
                                                               flex: 1,
                                                               child: Column(
@@ -436,12 +437,12 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                                     children: <Widget>[
                                                                       Label(
-                                                                        _sliderGasPriceMin.toString() + ' ' + NL10ns.of(context).gwei,
+                                                                        _sliderGasPriceMin.toString() + ' ' + _localizations.gwei,
                                                                         type: LabelType.bodySmall,
                                                                         color: DefaultTheme.primaryColor,
                                                                       ),
                                                                       Label(
-                                                                        _sliderGasPriceMax.toString() + ' ' + NL10ns.of(context).gwei,
+                                                                        _sliderGasPriceMax.toString() + ' ' + _localizations.gwei,
                                                                         type: LabelType.bodySmall,
                                                                         color: DefaultTheme.primaryColor,
                                                                       ),
@@ -463,11 +464,14 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                         ),
                                                         Row(
                                                           children: [
-                                                            Label(
-                                                              NL10ns.of(context).gas_max,
-                                                              type: LabelType.h4,
-                                                              fontWeight: FontWeight.w600,
-                                                            ).pad(r: 22),
+                                                            Padding(
+                                                              padding: const EdgeInsets.only(right: 22),
+                                                              child: Label(
+                                                                _localizations.gas_max,
+                                                                type: LabelType.h4,
+                                                                fontWeight: FontWeight.w600,
+                                                              ),
+                                                            ),
                                                             Expanded(
                                                               flex: 1,
                                                               child: Column(
@@ -520,7 +524,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                                 Padding(
                                                   padding: EdgeInsets.only(left: 30, right: 30),
                                                   child: Button(
-                                                    text: NL10ns.of(context).continue_text,
+                                                    text: _localizations.continue_text,
                                                     disabled: !_formValid,
                                                     onPressed: next,
                                                   ),
@@ -535,7 +539,7 @@ class _SendErc20ScreenState extends State<SendErc20Screen> with AccountDependsBl
                                 ),
                               );
                             } else {
-                              return null;
+                              return Container();
                             }
                           },
                         ),

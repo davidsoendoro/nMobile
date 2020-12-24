@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:nmobile/helpers/global.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
+import 'package:nmobile/common/global.dart';
+import 'package:nmobile/generated/l10n.dart';
 
 class Format {
   static String nknFormat(n, {String symbol, int decimalDigits = 4}) {
@@ -49,14 +49,14 @@ class Format {
     } else if (diff.inHours < Duration.hoursPerDay) {
       return formatDurationToTime(diff);
     } else if (diff.inDays < 7) {
-      return diff.inDays.toString() + ' ' + NL10ns.of(Global.appContext).days;
+      return diff.inDays.toString() + ' ' + S.of(Global.appContext).days;
     } else {
-      return (diff.inDays / 7).toStringAsFixed(0) + ' ' + NL10ns.of(Global.appContext).weeks;
+      return (diff.inDays / 7).toStringAsFixed(0) + ' ' + S.of(Global.appContext).weeks;
     }
   }
 
   static String durationFormat(Duration d) {
-    var localizations = NL10ns.of(Global.appContext);
+    var localizations = S.of(Global.appContext);
     if (d.inSeconds < 0) {
       return '0 ${localizations.seconds}';
     } else if (d.inSeconds < Duration.secondsPerMinute) {

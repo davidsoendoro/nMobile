@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:nmobile/components/button_icon.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/helpers/global.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/utils/image_utils.dart';
+
+import '../../components/button/button_icon.dart';
+import '../../generated/l10n.dart';
+import '../../theme/theme.dart';
+import '../../utils/assets.dart';
 
 class Nav extends StatefulWidget {
   PageController controller;
@@ -26,46 +26,51 @@ class _NavState extends State<Nav> {
     setState(() {
       widget.currentIndex = index;
       widget.controller.jumpToPage(index);
-//      Global.currentPageIndex = index;
     });
+
   }
 
   @override
   Widget build(BuildContext context) {
+    S _localizations = S.of(context);
     Color _color = Theme.of(context).unselectedWidgetColor;
     Color _selectedColor = DefaultTheme.primaryColor;
     return Container(
       decoration: BoxDecoration(
         boxShadow: [BoxShadow(color: DefaultTheme.backgroundColor2)],
         color: DefaultTheme.backgroundLightColor,
-        border: Border(top: BorderSide(color: DefaultTheme.backgroundColor2)),
-//        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: <Widget>[
-          ButtonIcon(
-            icon: loadAssetIconsImage('chat', color: widget.currentIndex == 0 ? _selectedColor : _color),
-            text: NL10ns.of(context).menu_chat,
-            height: 60,
-            fontColor: widget.currentIndex == 0 ? _selectedColor : _color,
-            onPressed: () => _onItemTapped(0),
-          ),
-          ButtonIcon(
-            icon: loadAssetIconsImage('wallet', color: widget.currentIndex == 1 ? _selectedColor : _color),
-            text: NL10ns.of(context).menu_wallet,
-            height: 60,
-            fontColor: widget.currentIndex == 1 ? _selectedColor : _color,
-            onPressed: () => _onItemTapped(1),
-          ),
-          ButtonIcon(
-            icon: loadAssetIconsImage('settings', color: widget.currentIndex == 2 ? _selectedColor : _color),
-            text: NL10ns.of(context).menu_settings,
-            height: 60,
-            fontColor: widget.currentIndex == 2 ? _selectedColor : _color,
-            onPressed: () => _onItemTapped(2),
-          ),
-        ],
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        minimum: EdgeInsets.only(bottom: 8, top: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            ButtonIcon(
+              icon: assetIcon('chat', color: widget.currentIndex == 0 ? _selectedColor : _color),
+              text: _localizations.menu_chat,
+              height: 60,
+              fontColor: widget.currentIndex == 0 ? _selectedColor : _color,
+              onPressed: () => _onItemTapped(0),
+            ),
+            ButtonIcon(
+              icon: assetIcon('wallet', color: widget.currentIndex == 1 ? _selectedColor : _color),
+              text: _localizations.menu_wallet,
+              height: 60,
+              fontColor: widget.currentIndex == 1 ? _selectedColor : _color,
+              onPressed: () => _onItemTapped(1),
+            ),
+            ButtonIcon(
+              icon: assetIcon('settings', color: widget.currentIndex == 2 ? _selectedColor : _color),
+              text: _localizations.menu_settings,
+              height: 60,
+              fontColor: widget.currentIndex == 2 ? _selectedColor : _color,
+              onPressed: () => _onItemTapped(2),
+            ),
+          ],
+        ),
       ),
     );
   }

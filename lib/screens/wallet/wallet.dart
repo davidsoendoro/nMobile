@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/wallets_state.dart';
-import 'package:nmobile/screens/wallet/home.dart';
-import 'package:nmobile/screens/wallet/no_wallet.dart';
-import 'package:nmobile/screens/welcome.dart';
 
+import 'home.dart';
+import 'no_wallet.dart';
 
 class WalletScreen extends StatefulWidget {
   static const String routeName = '/wallet';
@@ -21,7 +20,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return BlocBuilder<WalletsBloc, WalletsState>(
       builder: (context, state) {
         if (state is WalletsLoaded) {
@@ -32,7 +30,6 @@ class _WalletScreenState extends State<WalletScreen> {
           }
         }
         return NoWalletScreen();
-//        return Welcome();
       },
     );
   }

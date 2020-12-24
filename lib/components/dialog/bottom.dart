@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:nmobile/blocs/wallet/filtered_wallets_bloc.dart';
-import 'package:nmobile/blocs/wallet/filtered_wallets_event.dart';
-import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
-import 'package:nmobile/blocs/wallet/wallets_state.dart';
-import 'package:nmobile/components/button.dart';
-import 'package:nmobile/components/dialog/input_channel.dart';
+import 'package:nmobile/components/button/button.dart';
+
 import 'package:nmobile/components/label.dart';
 import 'package:nmobile/components/textbox.dart';
-import 'package:nmobile/consts/colors.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/helpers/format.dart';
-import 'package:nmobile/helpers/local_notification.dart';
-import 'package:nmobile/helpers/validation.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/schemas/contact.dart';
-import 'package:nmobile/schemas/wallet.dart';
-import 'package:nmobile/screens/contact/home.dart';
-import 'package:nmobile/utils/extensions.dart';
+import 'package:nmobile/generated/l10n.dart';
+import 'package:nmobile/helpers/validator.dart';
+
+import 'package:nmobile/theme/theme.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class BottomDialog extends StatefulWidget {
@@ -64,7 +51,7 @@ class BottomDialog extends StatefulWidget {
       action: Padding(
         padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 34),
         child: Button(
-          text: NL10ns.of(context).continue_text,
+          text: S.of(context).continue_text,
           width: double.infinity,
           onPressed: () {
             Navigator.of(context).pop(_passwordController.text);
@@ -93,13 +80,13 @@ class BottomDialog extends StatefulWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Label(
-                    NL10ns.of(context).wallet_password,
+                    S.of(context).wallet_password,
                     type: LabelType.h4,
                     textAlign: TextAlign.start,
                   ),
                   Textbox(
                     controller: _passwordController,
-                    hintText: NL10ns.of(context).input_password,
+                    hintText: S.of(context).input_password,
                     validator: Validator.of(context).password(),
                     password: true,
                   ),
@@ -119,7 +106,7 @@ class BottomDialog extends StatefulWidget {
       action: Padding(
         padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 34),
         child: Button(
-          text: NL10ns.of(context).accept_invitation,
+          text: S.of(context).accept_invitation,
           width: double.infinity,
           onPressed: onPressed,
         ),
@@ -160,7 +147,7 @@ class BottomDialog extends StatefulWidget {
               Textbox(
                 value: content,
                 enabled: false,
-                hintText: NL10ns.of(context).enter_users_address,
+                hintText: S.of(context).enter_users_address,
               ),
             ],
           ),
@@ -169,6 +156,7 @@ class BottomDialog extends StatefulWidget {
     );
   }
 
+  /* todo
   showInputAddressDialog({@required String title, String hint}) {
     TextEditingController _addressController = TextEditingController();
     double height = 300;
@@ -176,7 +164,7 @@ class BottomDialog extends StatefulWidget {
     bool formValid = false;
 
     if (hint == null) {
-      hint = NL10ns.of(context).enter_users_address;
+      hint = S.of(context).enter_users_address;
     }
 
     return show<String>(
@@ -184,7 +172,7 @@ class BottomDialog extends StatefulWidget {
       action: Padding(
         padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 34),
         child: Button(
-          text: NL10ns.of(context).continue_text,
+          text: S.of(context).continue_text,
           width: double.infinity,
           onPressed: () {
             if (formValid) {
@@ -225,7 +213,7 @@ class BottomDialog extends StatefulWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Label(
-                        NL10ns.of(context).send_to,
+                        S.of(context).send_to,
                         type: LabelType.bodyRegular,
                         color: DefaultTheme.fontColor1,
                         textAlign: TextAlign.start,
@@ -257,7 +245,7 @@ class BottomDialog extends StatefulWidget {
         ),
       ),
     );
-  }
+  }*/
 
 //  showInputChannelDialog({@required String title}) {
 //    return show<String>(
@@ -280,7 +268,7 @@ class BottomDialog extends StatefulWidget {
       action: Padding(
         padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 34),
         child: Button(
-          text: NL10ns.of(context).close,
+          text: S.of(context).close,
           width: double.infinity,
           backgroundColor: DefaultTheme.primaryColor.withAlpha(20),
           fontColor: DefaultTheme.primaryColor,
@@ -311,7 +299,7 @@ class BottomDialog extends StatefulWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Label(
-                    NL10ns.of(context).seed_qrcode_dec,
+                    S.of(context).seed_qrcode_dec,
                     type: LabelType.bodyRegular,
                     softWrap: true,
                   ),
@@ -333,7 +321,7 @@ class BottomDialog extends StatefulWidget {
       ),
     );
   }
-
+/* todo
   showSelectWalletDialog({@required String title, bool onlyNkn = false, void callback(WalletSchema wallet)}) {
     FilteredWalletsBloc _filteredWalletsBloc = BlocProvider.of<FilteredWalletsBloc>(context);
     double height = 300;
@@ -446,7 +434,7 @@ class BottomDialog extends StatefulWidget {
                                                   padding: 2.pad(l: 8, r: 8),
                                                   decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(9)), color: Colours.green_06_a1p),
                                                   child: Text(
-                                                    NL10ns.of(context).mainnet,
+                                                    S.of(context).mainnet,
                                                     style: TextStyle(color: Colours.green_06, fontSize: 10, fontWeight: FontWeight.bold),
                                                   ),
                                                 )
@@ -455,7 +443,7 @@ class BottomDialog extends StatefulWidget {
                                                   padding: 2.pad(l: 8, r: 8),
                                                   decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(9)), color: Colours.purple_53_a1p),
                                                   child: Text(
-                                                    NL10ns.of(context).ERC_20,
+                                                    S.of(context).ERC_20,
                                                     style: TextStyle(color: Colours.purple_53, fontSize: 10, fontWeight: FontWeight.bold),
                                                   ),
                                                 ),
@@ -488,9 +476,10 @@ class BottomDialog extends StatefulWidget {
       ),
     );
   }
+*/
 
-  showBottomDialog({@required String title, @required Widget child, Widget action, double height = 300}) {
-    return show<String>(
+  showBottomDialog<T>({@required String title, @required Widget child, Widget action, double height = 300}) {
+    return show<T>(
       height: height,
       action: action,
       builder: (context) => GestureDetector(
@@ -498,7 +487,6 @@ class BottomDialog extends StatefulWidget {
           FocusScope.of(context).requestFocus(FocusNode());
         },
         child: Container(
-          padding: const EdgeInsets.only(left: 20, right: 20),
           child: Flex(
             direction: Axis.vertical,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +494,7 @@ class BottomDialog extends StatefulWidget {
               Expanded(
                 flex: 0,
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 24, bottom: 24),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 24),
                   child: Label(
                     title,
                     type: LabelType.h2,

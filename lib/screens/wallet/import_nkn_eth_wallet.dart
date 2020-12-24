@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:nmobile/components/header/header.dart';
+import 'package:nmobile/components/layout/header.dart';
 import 'package:nmobile/components/tabs.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/event/eventbus.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
+import 'package:nmobile/generated/l10n.dart';
+
 import 'package:nmobile/schemas/wallet.dart';
-import 'package:nmobile/screens/scanner.dart';
-import 'package:nmobile/screens/wallet/import_keystore_nkn_eth_wallet.dart';
-import 'package:nmobile/screens/wallet/import_seed_nkn_eth_wallet.dart';
-import 'package:nmobile/utils/image_utils.dart';
-import 'package:nmobile/utils/nlog_util.dart';
+import 'package:nmobile/theme/theme.dart';
+
+import 'import_keystore_nkn_eth_wallet.dart';
+import 'import_seed_nkn_eth_wallet.dart';
 
 class ImportWalletScreen extends StatefulWidget {
   static const String routeName = '/wallet/import_nkn_wallet';
 
-  final WalletType type;
+  final arguments;
+  WalletType type = WalletType.nkn;
 
-  const ImportWalletScreen({this.type});
+  ImportWalletScreen({this.arguments}) {
+    if (arguments != null) {
+      type = arguments['type'];
+    }
+  }
 
   @override
   _ImportWalletScreenState createState() => _ImportWalletScreenState();
@@ -33,23 +36,12 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    List<String> tabs = [NL10ns.of(context).tab_keystore, NL10ns.of(context).tab_seed];
+    S _localizations = S.of(context);
+    List<String> tabs = [_localizations.tab_keystore, _localizations.tab_seed];
     return Scaffold(
       appBar: Header(
-        title: widget.type == WalletType.eth ? NL10ns.of(context).import_ethereum_wallet : NL10ns.of(context).import_nkn_wallet,
+        title: widget.type == WalletType.eth ? _localizations.import_ethereum_wallet : _localizations.import_nkn_wallet,
         backgroundColor: DefaultTheme.backgroundColor4,
-        action: IconButton(
-          icon: loadAssetIconsImage(
-            'scan',
-            width: 24,
-            color: DefaultTheme.backgroundLightColor,
-          ),
-          onPressed: () async {
-            var qrData = await Navigator.of(context).pushNamed(ScannerScreen.routeName);
-            eventBus.fire(QMScan(qrData));
-            NLog.d(qrData);
-          },
-        ),
       ),
       body: ConstrainedBox(
         constraints: BoxConstraints.expand(),

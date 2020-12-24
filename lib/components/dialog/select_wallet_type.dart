@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:nmobile/consts/colors.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
+import 'package:nmobile/generated/l10n.dart';
 import 'package:nmobile/schemas/wallet.dart';
-import 'package:nmobile/utils/extensions.dart';
+import 'package:nmobile/theme/theme.dart';
+
+import 'bottom.dart';
 
 class SelectWalletTypeDialog extends StatefulWidget {
   @override
@@ -14,18 +14,10 @@ class SelectWalletTypeDialog extends StatefulWidget {
   SelectWalletTypeDialog.of(this._context);
 
   Future<WalletType> show() {
-    return showModalBottomSheet<WalletType>(
-      context: _context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
-      backgroundColor: DefaultTheme.backgroundLightColor,
-      builder: (BuildContext context) {
-        return AnimatedPadding(
-          padding: MediaQuery.of(context).viewInsets,
-          duration: const Duration(milliseconds: 100),
-          child: this,
-        );
-      },
+    return BottomDialog.of(_context).showBottomDialog<WalletType>(
+      height: 330,
+      title: S.of(_context).select_wallet_type,
+      child: this,
     );
   }
 
@@ -35,109 +27,149 @@ class SelectWalletTypeDialog extends StatefulWidget {
 }
 
 class _SelectWalletTypeDialogState extends State<SelectWalletTypeDialog> {
+  S _localizations;
+
   @override
   Widget build(BuildContext context) {
+    _localizations = S.of(context);
     return Container(
       width: double.infinity,
-      height: 375,
-      constraints: BoxConstraints(minHeight: 200),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 80,
-            height: 4,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.all(Radius.circular(2)),
-              color: Colours.light_e9,
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
+            child: Text(
+              _localizations.select_wallet_type_desc,
+              style: TextStyle(fontSize: DefaultTheme.h4FontSize, color: DefaultTheme.fontColor2),
             ),
-          ).center.pad(t: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                NL10ns.of(context).select_wallet_type,
-                style: TextStyle(fontSize: DefaultTheme.h2FontSize, color: Colours.dark_2d, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                NL10ns.of(context).select_wallet_type_desc,
-                style: TextStyle(fontSize: DefaultTheme.h4FontSize, color: Colours.gray_81),
-              ).pad(t: 8),
-              _getItemNkn(context),
-              Container(height: 1, color: Colours.light_e9).pad(l: 64, t: 16),
-              _getItemEth(context),
-              Container(height: 1, color: Colours.light_e9).pad(l: 64, t: 16),
-            ],
-          ).pad(l: 20, t: 32, r: 20),
+          ),
+          _getItemNkn(context),
+          _getItemEth(context),
         ],
       ),
     );
   }
 
   Widget _getItemNkn(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.all(Radius.circular(8)),
-            color: Colours.light_ff,
-          ),
-          child: SvgPicture.asset('assets/logo.svg', color: Colours.purple_2e),
+    return InkWell(
+      onTap: () {
+        widget.close(type: WalletType.nkn);
+      },
+      child: Container(
+        padding: const EdgeInsets.only(left: 20, right: 20),
+        height: 72,
+        child: Flex(
+          direction: Axis.horizontal,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              flex: 0,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12, top: 12, right: 10),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                    color: DefaultTheme.logoBackground,
+                  ),
+                  child: SvgPicture.asset('assets/logo.svg', color: DefaultTheme.nknLogoColor),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: DefaultTheme.backgroundColor2)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      _localizations.nkn_mainnet,
+                      style: TextStyle(fontSize: DefaultTheme.h3FontSize, color: DefaultTheme.fontColor1, fontWeight: FontWeight.bold),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.only(left: 8, right: 8, top: 2, bottom: 2),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(9)), color: DefaultTheme.successColor.withAlpha(25)),
+                      child: Text(
+                        _localizations.mainnet,
+                        style: TextStyle(color: DefaultTheme.successColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        Text(
-          NL10ns.of(context).nkn_mainnet,
-          style: TextStyle(fontSize: DefaultTheme.h3FontSize, color: Colours.dark_2d, fontWeight: FontWeight.bold),
-        ).pad(l: 16),
-        Spacer(),
-        Container(
-          alignment: Alignment.center,
-          padding: 2.pad(l: 8, r: 8),
-          decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(9)), color: Colours.green_06_a1p),
-          child: Text(
-            NL10ns.of(context).mainnet,
-            style: TextStyle(color: Colours.green_06, fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-        )
-      ],
-    ).pad(t: 24).inkWell(() {
-      widget.close(type: WalletType.nkn);
-    });
+      ),
+    );
   }
 
   Widget _getItemEth(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.all(Radius.circular(8)),
-            color: Colours.light_ff,
-          ),
-          child: SvgPicture.asset('assets/icon_eth_15_24.svg', color: Colours.purple_53),
+    return InkWell(
+      onTap: () {
+        widget.close(type: WalletType.eth);
+      },
+      child: Container(
+        padding: const EdgeInsets.only(left: 20, right: 20),
+        height: 72,
+        child: Flex(
+          direction: Axis.horizontal,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              flex: 0,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12, top: 12, right: 10),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                    color: DefaultTheme.logoBackground,
+                  ),
+                  child: SvgPicture.asset('assets/icon_eth_15_24.svg', color: DefaultTheme.ethLogoColor),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: DefaultTheme.backgroundColor2)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      _localizations.ethereum,
+                      style: TextStyle(fontSize: DefaultTheme.h3FontSize, color: DefaultTheme.fontColor1, fontWeight: FontWeight.bold),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.only(left: 8, right: 8, top: 2, bottom: 2),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(9)), color: DefaultTheme.successColor.withAlpha(25)),
+                      child: Text(
+                        _localizations.ERC_20,
+                        style: TextStyle(color: DefaultTheme.ethLogoColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        Text(
-          NL10ns.of(context).ethereum,
-          style: TextStyle(fontSize: DefaultTheme.h3FontSize, color: Colours.dark_2d, fontWeight: FontWeight.bold),
-        ).pad(l: 16),
-        Spacer(),
-        Container(
-          alignment: Alignment.center,
-          padding: 2.pad(l: 8, r: 8),
-          decoration: BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(9)), color: Colours.purple_53_a1p),
-          child: Text(
-            NL10ns.of(context).ERC_20,
-            style: TextStyle(color: Colours.purple_53, fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-        )
-      ],
-    ).pad(t: 24).inkWell(() {
-      widget.close(type: WalletType.eth);
-    });
+      ),
+    );
   }
 }

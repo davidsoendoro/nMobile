@@ -1,6 +1,3 @@
-//import com.android.build.OutputFile
-//import com.android.build.gradle.api.ApplicationVariant
-
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -11,7 +8,7 @@ if (localPropertiesFile.exists()) {
 
 def flutterRoot = localProperties.getProperty('flutter.sdk')
 if (flutterRoot == null) {
-    throw new Exception("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
 }
 
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
@@ -30,40 +27,44 @@ apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
     compileSdkVersion 29
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+
     defaultConfig {
-        // Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "org.nkn.mobile.app"
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdkVersion 29
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a"
         }
-
-        javaCompileOptions { annotationProcessorOptions { includeCompileClasspath = true } }
     }
 
     signingConfigs {
         release {
             String kStoreFile = System.getenv("KEY_STORE_FILE")
             boolean useDebugConf = kStoreFile == null
-            println("---------->>> signingConfigs.release | useDebugConf: $useDebugConf")
+            println("signingConfigs.release | useDebugConf: $useDebugConf")
             storeFile file(useDebugConf ? KEYSTORE_FILE : kStoreFile)
             storePassword useDebugConf ? KEYSTORE_STOREPWD : System.getenv("KEY_STORE_STORE_PWD")
             keyAlias useDebugConf ? KEYSTORE_ALIAS : System.getenv("KEY_STORE_KEY_ALIAS")
             keyPassword useDebugConf ? KEYSTORE_PASSWORD : System.getenv("KEY_STORE_KEY_PWD")
 
-            println("---------->>> signingConfigs.storeFile | useDebugConf: $storeFile")
-            println("---------->>> signingConfigs.storePassword | useDebugConf: $storePassword")
-            println("---------->>> signingConfigs.keyAlias | useDebugConf: $keyAlias")
-            println("---------->>> signingConfigs.keyPassword | useDebugConf: $keyPassword")
+            println("signingConfigs.storeFile | useDebugConf: $storeFile")
+            println("signingConfigs.storePassword | useDebugConf: $storePassword")
+            println("signingConfigs.keyAlias | useDebugConf: $keyAlias")
+            println("signingConfigs.keyPassword | useDebugConf: $keyPassword")
             v2SigningEnabled true
         }
         debug {
-            println("---------->>> signingConfigs.debug")
             storeFile file(KEYSTORE_FILE)
             storePassword KEYSTORE_STOREPWD
             keyAlias KEYSTORE_ALIAS
@@ -71,27 +72,14 @@ android {
             v2SigningEnabled true
         }
     }
+
     buildTypes {
         release {
-            ndk{
-                //这里其实我觉可以直接是用"armeabi-v7a"，但国内几个大哥之前使用的都是"armeabi"
-                abiFilters "arm64-v8a", "armeabi-v7a"
-            }
             shrinkResources false
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
-            versionNameSuffix "(build-$flutterVersionCode)"
         }
         debug {
-//            ndk {
-//                //这里要加上，否则debug包会出问题,后面三个为可选，x86建议加上不然部分模拟器回报错
-//                abiFilters "armeabi", "armeabi-v7a","arm64-v8a", "x86"
-//            }
-//            ndk{
-//                //这里其实我觉可以直接是用"armeabi-v7a"，但国内几个大哥之前使用的都是"armeabi"
-//                abiFilters "armeabi"
-//            }
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
 
@@ -101,15 +89,6 @@ android {
         }
     }
 
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
-    lintOptions {
-        checkReleaseBuilds false
-        abortOnError false
-    }
-//
     packagingOptions{
         exclude 'META-INF/io.netty.versions.properties'
         exclude 'META-INF/DEPENDENCIES'
@@ -127,30 +106,6 @@ android {
     }
 }
 
-// Put the highest bit +1. e.g: [1]01413935 -> [2]01413935 / [3]01413935 etc.
-static def version4Abi(int code) {
-    return Math.pow(10, code.toString().length() - 1).toInteger()
-}
-
-static def weekIndex() {
-    Calendar calendar = Calendar.getInstance()
-    calendar.setFirstDayOfWeek(Calendar.MONDAY)
-    calendar.setMinimalDaysInFirstWeek(1)
-    return String.format("%02d", calendar.get(Calendar.WEEK_OF_YEAR))
-}
-
-static def weekDay() {
-    Calendar calendar = Calendar.getInstance()
-    calendar.setFirstDayOfWeek(Calendar.MONDAY)
-    calendar.setMinimalDaysInFirstWeek(1)
-    def dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1
-    if (dayOfWeek == 0) return 7 else return dayOfWeek
-}
-
-static def getDate() {
-    return new Date().format('yyyyMMdd')
-}
-
 flutter {
     source '../..'
 }
@@ -161,30 +116,21 @@ repositories {
     }
 }
 
-apply plugin: 'com.android.application'
-
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation(name: 'nkn', ext: 'aar')
+    implementation project(":golib")
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'androidx.test:runner:1.1.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.9"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.2.0"
     implementation "org.bouncycastle:bcprov-jdk15on:1.64"
     implementation 'com.google.protobuf:protobuf-java:3.11.4'
-
-    // bug检测
-    implementation 'io.sentry:sentry-android:1.7.27'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+    implementation 'io.sentry:sentry-android:3.1.0'
     implementation 'org.slf4j:slf4j-nop:1.7.25'
-
     implementation 'com.google.api-client:google-api-client:+'
-//    implementation 'com.google.auth:google-auth-library-oauth2-http:0.22.0'
-
     implementation 'com.google.firebase:firebase-messaging:+'
     implementation platform('com.google.firebase:firebase-bom:25.12.0')
 }
 
 apply plugin: 'com.google.gms.google-services'
-
-
-

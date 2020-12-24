@@ -16,9 +16,9 @@ class FilteredWalletsLoaded extends FilteredWalletsState {
   final Function filter;
 
   const FilteredWalletsLoaded(
-    this.filteredWallets,
-    this.filter,
-  );
+      this.filteredWallets,
+      this.filter,
+      );
 
   @override
   List<Object> get props => [filteredWallets, filter];

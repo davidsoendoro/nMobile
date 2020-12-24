@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:nmobile/components/button_icon.dart';
-import 'package:nmobile/components/button.dart';
+import 'package:nmobile/components/button/button.dart';
+import 'package:nmobile/components/button/button_icon.dart';
 import 'package:nmobile/components/label.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/utils/image_utils.dart';
+import 'package:nmobile/generated/l10n.dart';
+import 'package:nmobile/theme/theme.dart';
+import 'package:nmobile/utils/assets.dart';
 
 class ModalDialog extends StatefulWidget {
   @override
@@ -82,12 +82,13 @@ class _ModalDialogState extends State<ModalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    S _localizations = S.of(context);
     List<Widget> actions = List.of(widget.actions);
     if (widget.hasCloseButton) {
       actions.add(Button(
         backgroundColor: DefaultTheme.backgroundLightColor,
         fontColor: DefaultTheme.fontColor2,
-        text: NL10ns.of(context).close,
+        text: _localizations.close,
         width: double.infinity,
         onPressed: () => widget.close(),
       ));
@@ -118,7 +119,7 @@ class _ModalDialogState extends State<ModalDialog> {
                         padding: const EdgeInsets.all(0),
                         width: 30,
                         height: 30,
-                        icon: loadAssetIconsImage('close', width: 16),
+                        icon: assetIcon('close', width: 16),
                         onPressed: () => widget.close(),
                       )
                     ],
@@ -137,7 +138,7 @@ class _ModalDialogState extends State<ModalDialog> {
                       padding: EdgeInsets.only(bottom: 24),
                       child: widget.title ??
                           Label(
-                            NL10ns.of(context).warning,
+                            _localizations.warning,
                             type: LabelType.h2,
                           ),
                     ),

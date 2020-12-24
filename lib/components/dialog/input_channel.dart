@@ -244,7 +244,7 @@
 //                                              decimal: true,
 //                                            ),
 //                                            textInputAction: TextInputAction.done,
-//                                            inputFormatters: [WhitelistingTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'))],
+//                                            inputFormatters: [FilteringTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'))],
 //                                          ),
 //                                        ),
 //                                      ],

@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:nmobile/consts/theme.dart';
+import 'package:nmobile/theme/theme.dart';
 
 enum LabelType {
   h1,

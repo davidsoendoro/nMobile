@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_it/get_it.dart';
-import 'package:nmobile/app.dart';
 import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
-import 'package:nmobile/components/button.dart';
-import 'package:nmobile/components/header/header.dart';
+import 'package:nmobile/blocs/wallet/wallets_event.dart';
+import 'package:nmobile/components/button/button.dart';
 import 'package:nmobile/components/label.dart';
+import 'package:nmobile/components/layout/header.dart';
 import 'package:nmobile/components/textbox.dart';
-import 'package:nmobile/consts/colors.dart';
-import 'package:nmobile/consts/theme.dart';
-import 'package:nmobile/helpers/validation.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/model/eth_erc20_token.dart';
-import 'package:nmobile/utils/extensions.dart';
+import 'package:nmobile/generated/l10n.dart';
+import 'package:nmobile/helpers/nkn_erc20.dart';
+import 'package:nmobile/helpers/validator.dart';
+import 'package:nmobile/schemas/wallet.dart';
+import 'package:nmobile/theme/theme.dart';
 
 class CreateEthWalletScreen extends StatefulWidget {
   static const String routeName = '/wallet/create_eth_wallet';
@@ -42,21 +41,30 @@ class _CreateEthWalletScreenState extends State<CreateEthWalletScreen> {
     _walletsBloc = BlocProvider.of<WalletsBloc>(context);
   }
 
+  @override
+  void dispose() {
+    EasyLoading.dismiss();
+    super.dispose();
+  }
+
   next() async {
     if ((_formKey.currentState as FormState).validate()) {
       (_formKey.currentState as FormState).save();
-      final eth = Ethereum.createWallet(name: _name, password: _password);
-      Ethereum.saveWallet(ethWallet: eth, walletsBloc: _walletsBloc);
-
-      Navigator.of(context).pushReplacementNamed(AppScreen.routeName);
+      EasyLoading.show(maskType: EasyLoadingMaskType.black);
+      final ethWallet = Ethereum.createWallet(name: _name, password: _password);
+      final ethSchema = WalletSchema(address: (await ethWallet.address).hex, name: ethWallet.name, type: WalletSchema.ETH_WALLET);
+      _walletsBloc.add(AddWallet(ethSchema, ethWallet.keystore));
+      EasyLoading.dismiss();
+      Navigator.of(context).pop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    S _localizations = S.of(context);
     return Scaffold(
       appBar: Header(
-        title: NL10ns.of(context).create_ethereum_wallet,
+        title: _localizations.create_ethereum_wallet,
         backgroundColor: DefaultTheme.backgroundColor4,
       ),
       body: ConstrainedBox(
@@ -74,14 +82,15 @@ class _CreateEthWalletScreenState extends State<CreateEthWalletScreen> {
                 right: 0,
                 child: Container(
                   alignment: Alignment.topCenter,
+                  padding: const EdgeInsets.only(top:12),
                   constraints: BoxConstraints.expand(height: MediaQuery.of(context).size.height),
                   color: DefaultTheme.backgroundColor4,
                   child: SvgPicture.asset(
                     'assets/icon_eth_68_108.svg',
-                    color: Colours.white,
+                    color: DefaultTheme.backgroundLightColor,
                     width: 68,
                     height: 108,
-                  ).pad(t: 12),
+                  ),
                 ),
               ),
               ConstrainedBox(
@@ -130,12 +139,12 @@ class _CreateEthWalletScreenState extends State<CreateEthWalletScreen> {
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: <Widget>[
                                                       Label(
-                                                        NL10ns.of(context).wallet_name,
+                                                        _localizations.wallet_name,
                                                         type: LabelType.h3,
                                                         textAlign: TextAlign.start,
                                                       ),
                                                       Textbox(
-                                                        hintText: NL10ns.of(context).hint_enter_wallet_name,
+                                                        hintText: _localizations.hint_enter_wallet_name,
                                                         focusNode: _nameFocusNode,
                                                         onSaved: (v) => _name = v,
                                                         onFieldSubmitted: (_) {
@@ -144,16 +153,16 @@ class _CreateEthWalletScreenState extends State<CreateEthWalletScreen> {
                                                         textInputAction: TextInputAction.next,
                                                         validator: Validator.of(context).walletName(),
                                                       ),
-                                                      SizedBox(height: 14.h),
+                                                      SizedBox(height: 14),
                                                       Label(
-                                                        NL10ns.of(context).wallet_password,
+                                                        _localizations.wallet_password,
                                                         type: LabelType.h3,
                                                         textAlign: TextAlign.start,
                                                       ),
                                                       Textbox(
                                                         focusNode: _passwordFocusNode,
                                                         controller: _passwordController,
-                                                        hintText: NL10ns.of(context).input_password,
+                                                        hintText: _localizations.input_password,
                                                         onSaved: (v) => _password = v,
                                                         onFieldSubmitted: (_) {
                                                           FocusScope.of(context).requestFocus(_confirmPasswordFocusNode);
@@ -163,18 +172,18 @@ class _CreateEthWalletScreenState extends State<CreateEthWalletScreen> {
                                                         password: true,
                                                       ),
                                                       Text(
-                                                        NL10ns.of(context).wallet_password_mach,
-                                                        style: TextStyle(color: Colours.gray_81, fontSize: DefaultTheme.bodySmallFontSize),
+                                                        _localizations.wallet_password_mach,
+                                                        style: TextStyle(color: DefaultTheme.fontColor2, fontSize: DefaultTheme.bodySmallFontSize),
                                                       ),
-                                                      SizedBox(height: 24.h),
+                                                      SizedBox(height: 24),
                                                       Label(
-                                                        NL10ns.of(context).confirm_password,
+                                                        _localizations.confirm_password,
                                                         type: LabelType.h3,
                                                         textAlign: TextAlign.start,
                                                       ),
                                                       Textbox(
                                                         focusNode: _confirmPasswordFocusNode,
-                                                        hintText: NL10ns.of(context).input_password_again,
+                                                        hintText: _localizations.input_password_again,
                                                         validator: Validator.of(context).confrimPassword(_passwordController.text),
                                                         password: true,
                                                       ),
@@ -197,9 +206,9 @@ class _CreateEthWalletScreenState extends State<CreateEthWalletScreen> {
                                       child: Column(
                                         children: <Widget>[
                                           Padding(
-                                            padding: EdgeInsets.only(left: 30, right: 30),
+                                            padding: EdgeInsets.only(left: 20, right: 20),
                                             child: Button(
-                                              text: NL10ns.of(context).create_wallet,
+                                              text: _localizations.create_wallet,
                                               disabled: !_formValid,
                                               onPressed: next,
                                             ),

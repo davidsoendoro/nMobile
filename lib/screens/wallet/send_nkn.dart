@@ -1,51 +1,52 @@
 import 'dart:convert';
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_it/get_it.dart';
-import 'package:nmobile/blocs/account_depends_bloc.dart';
+import 'package:nkn_sdk_flutter/wallet.dart';
 import 'package:nmobile/blocs/wallet/filtered_wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/filtered_wallets_state.dart';
 import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/wallets_state.dart';
-import 'package:nmobile/components/button.dart';
+import 'package:nmobile/components/button/button.dart';
 import 'package:nmobile/components/dialog/modal.dart';
-import 'package:nmobile/components/header/header.dart';
 import 'package:nmobile/components/label.dart';
 import 'package:nmobile/components/layout/expansion_layout.dart';
+import 'package:nmobile/components/layout/header.dart';
 import 'package:nmobile/components/textbox.dart';
 import 'package:nmobile/components/wallet/dropdown.dart';
-import 'package:nmobile/consts/theme.dart';
+import 'package:nmobile/consts/wallet_error.dart';
+import 'package:nmobile/generated/l10n.dart';
 import 'package:nmobile/helpers/format.dart';
-import 'package:nmobile/helpers/global.dart';
-import 'package:nmobile/helpers/utils.dart';
-import 'package:nmobile/helpers/validation.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/plugins/nkn_wallet.dart';
-import 'package:nmobile/schemas/contact.dart';
+import 'package:nmobile/helpers/validator.dart';
 import 'package:nmobile/schemas/wallet.dart';
-import 'package:nmobile/screens/contact/home.dart';
 import 'package:nmobile/screens/scanner.dart';
 import 'package:nmobile/services/task_service.dart';
-import 'package:nmobile/utils/const_utils.dart';
-import 'package:nmobile/utils/extensions.dart';
-import 'package:nmobile/utils/image_utils.dart';
-import 'package:oktoast/oktoast.dart';
+import 'package:nmobile/storages/wallet.dart';
+import 'package:nmobile/theme/theme.dart';
+import 'package:nmobile/utils/assets.dart';
+import 'package:nmobile/utils/wallet.dart';
 
 class SendNknScreen extends StatefulWidget {
   static const String routeName = '/wallet/send_nkn';
-  final WalletSchema arguments;
+  final arguments;
+  WalletSchema wallet;
 
-  SendNknScreen({this.arguments});
+  SendNknScreen({this.arguments}) {
+    wallet = arguments['wallet'];
+  }
 
   @override
   _SendNknScreenState createState() => _SendNknScreenState();
 }
 
-class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
+class _SendNknScreenState extends State<SendNknScreen> {
+  S _localizations;
   final GetIt locator = GetIt.instance;
+  WalletStorage _walletStorage = WalletStorage();
   GlobalKey _formKey = new GlobalKey<FormState>();
   bool _formValid = false;
   TextEditingController _amountController = TextEditingController();
@@ -75,29 +76,30 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
     if ((_formKey.currentState as FormState).validate()) {
       (_formKey.currentState as FormState).save();
 
-      var password = await wallet.getPassword();
+      String password = await _walletStorage.authPassword(widget.wallet.address);
       if (password != null) {
-        final result = transferAction(password);
+        String keystore = await _walletStorage.getKeystore(widget.wallet.address);
+        final result = transferAction(keystore, password);
         Navigator.pop(context, result);
       }
     }
   }
 
-  Future<bool> transferAction(password) async {
+  Future<bool> transferAction(String keystore, String password) async {
     try {
-      final nw = await wallet.exportWallet(password);
-      final txHash = await NknWalletPlugin.transferAsync(nw['keystore'], password, _sendTo, _amount, _fee.toString());
-      if (txHash != null) {
+      Wallet wallet = await Wallet.restore(keystore, password);
+      String txHash = await wallet.transfer(_sendTo, _amount, fee: _fee.toString());
+      if(txHash != null) {
         locator<TaskService>().queryNknWalletBalanceTask();
       }
-      return txHash.length > 10;
+      return txHash?.isNotEmpty == true;
     } catch (e) {
-      if (e.message == ConstUtils.WALLET_PASSWORD_ERROR) {
-        showToast(NL10ns.of(Global.appContext).password_wrong);
+      if (e.message == WalletError.WALLET_PASSWORD_WRONG) {
+        BotToast.showText(text: _localizations.password_wrong);
       } else if (e.message == 'INTERNAL ERROR, can not append tx to txpool: not sufficient funds') {
-        showToast(e.message);
+        BotToast.showText(text: e.message);
       } else {
-        showToast(NL10ns.of(Global.appContext).failure);
+        BotToast.showText(text: _localizations.failure);
       }
       return false;
     }
@@ -105,42 +107,45 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
 
   @override
   Widget build(BuildContext context) {
+    _localizations = S.of(context);
     return Scaffold(
       appBar: Header(
-        title: NL10ns.of(context).send_nkn,
+        title: _localizations.send_nkn,
         backgroundColor: DefaultTheme.backgroundColor4,
-        action: IconButton(
-          icon: loadAssetIconsImage(
-            'scan',
-            width: 24,
-            color: DefaultTheme.backgroundLightColor,
-          ),
-          onPressed: () async {
-            var qrData = await Navigator.of(context).pushNamed(ScannerScreen.routeName);
-            var jsonFormat;
-            var jsonData;
-            try {
-              jsonData = jsonDecode(qrData);
-              jsonFormat = true;
-            } on Exception catch (e) {
-              jsonFormat = false;
-            }
-            if (jsonFormat) {
-              _sendToController.text = jsonData['address'];
-              _amountController.text = jsonData['amount'].toString();
-            } else if (verifyAddress(qrData)) {
-              _sendToController.text = qrData;
-            } else {
-              await ModalDialog.of(context).show(
-                height: 240,
-                content: Label(
-                  NL10ns.of(context).error_unknown_nkn_qrcode,
-                  type: LabelType.bodyRegular,
-                ),
-              );
-            }
-          },
-        ),
+        actions: [
+          IconButton(
+            icon: assetIcon(
+              'scan',
+              width: 24,
+              color: DefaultTheme.backgroundLightColor,
+            ),
+            onPressed: () async {
+              var qrData = await Navigator.of(context).pushNamed(ScannerScreen.routeName);
+              var jsonFormat;
+              var jsonData;
+              try {
+                jsonData = jsonDecode(qrData);
+                jsonFormat = true;
+              } on Exception catch (e) {
+                jsonFormat = false;
+              }
+              if (jsonFormat) {
+                _sendToController.text = jsonData['address'];
+                _amountController.text = jsonData['amount'].toString();
+              } else if (verifyAddress(qrData)) {
+                _sendToController.text = qrData;
+              } else {
+                await ModalDialog.of(context).show(
+                  height: 240,
+                  content: Label(
+                    _localizations.error_unknown_nkn_qrcode,
+                    type: LabelType.bodyRegular,
+                  ),
+                );
+              }
+            },
+          )
+        ],
       ),
       body: ConstrainedBox(
         constraints: BoxConstraints.expand(),
@@ -192,11 +197,11 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                               return Container(
                                 decoration: BoxDecoration(
                                   color: DefaultTheme.backgroundLightColor,
-//                                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                                 ),
                                 child: Form(
                                   key: _formKey,
-                                  autovalidate: true,
+                                  autovalidateMode: AutovalidateMode.always,
                                   onChanged: () {
                                     setState(() {
                                       _formValid = (_formKey.currentState as FormState).validate();
@@ -213,20 +218,18 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-//                                                  Label(
-//                                                    NMobileLocalizations.of(context).from,
-//                                                    type: LabelType.h4,
-//                                                    textAlign: TextAlign.start,
-//                                                  ),
                                                   WalletDropdown(
-                                                    title: NL10ns.of(context).select_asset_to_receive,
-                                                    schema: widget.arguments ?? wallet,
+                                                    title: _localizations.select_asset_to_receive,
+                                                    schema: widget.wallet ?? wallet,
                                                   ),
-                                                  Label(
-                                                    NL10ns.of(context).amount,
-                                                    type: LabelType.h4,
-                                                    textAlign: TextAlign.start,
-                                                  ).pad(t: 20),
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 20),
+                                                    child: Label(
+                                                      _localizations.amount,
+                                                      type: LabelType.h4,
+                                                      textAlign: TextAlign.start,
+                                                    ),
+                                                  ),
                                                   Textbox(
                                                     padding: const EdgeInsets.only(bottom: 4),
                                                     controller: _amountController,
@@ -237,18 +240,18 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                     },
                                                     validator: Validator.of(context).amount(),
                                                     showErrorMessage: false,
-                                                    hintText: NL10ns.of(context).enter_amount,
+                                                    hintText: _localizations.enter_amount,
                                                     suffixIcon: GestureDetector(
                                                       onTap: () {},
                                                       child: Container(
                                                         width: 20,
                                                         alignment: Alignment.centerRight,
-                                                        child: Label(NL10ns.of(context).nkn, type: LabelType.label),
+                                                        child: Label(_localizations.nkn, type: LabelType.label),
                                                       ),
                                                     ),
                                                     textInputAction: TextInputAction.next,
                                                     keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                                    inputFormatters: [WhitelistingTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'))],
+                                                    inputFormatters: [FilteringTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'), allow: true)],
                                                   ),
                                                   Padding(
                                                     padding: const EdgeInsets.only(bottom: 20),
@@ -257,7 +260,7 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                       children: <Widget>[
                                                         Row(
                                                           children: <Widget>[
-                                                            Label(NL10ns.of(context).available + ': '),
+                                                            Label(_localizations.available + ': '),
                                                             BlocBuilder<WalletsBloc, WalletsState>(
                                                               builder: (context, state) {
                                                                 if (state is WalletsLoaded) {
@@ -276,7 +279,7 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                         ),
                                                         InkWell(
                                                           child: Label(
-                                                            NL10ns.of(context).max,
+                                                            _localizations.max,
                                                             color: DefaultTheme.primaryColor,
                                                             type: LabelType.bodyRegular,
                                                           ),
@@ -288,7 +291,7 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                     ),
                                                   ),
                                                   Label(
-                                                    NL10ns.of(context).send_to,
+                                                    _localizations.send_to,
                                                     type: LabelType.h4,
                                                     textAlign: TextAlign.start,
                                                   ),
@@ -301,17 +304,17 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                     },
                                                     validator: Validator.of(context).nknAddress(),
                                                     textInputAction: TextInputAction.next,
-                                                    hintText: NL10ns.of(context).enter_receive_address,
+                                                    hintText: _localizations.enter_receive_address,
                                                     suffixIcon: GestureDetector(
                                                       onTap: () async {
-                                                        if (account?.client != null) {
-                                                          var contact = await Navigator.of(context).pushNamed(ContactHome.routeName, arguments: true);
-                                                          if (contact is ContactSchema) {
-                                                            _sendToController.text = contact.nknWalletAddress;
-                                                          }
-                                                        } else {
-                                                          showToast('D-Chat not login');
-                                                        }
+                                                        // if (account?.client != null) {
+                                                        //   var contact = await Navigator.of(context).pushNamed(ContactHome.routeName, arguments: true);
+                                                        //   if (contact is ContactSchema) {
+                                                        //     _sendToController.text = contact.nknWalletAddress;
+                                                        //   }
+                                                        // } else {
+                                                        //   showToast('D-Chat not login');
+                                                        // }
                                                       },
                                                       child: Container(
                                                         width: 20,
@@ -336,14 +339,14 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                             crossAxisAlignment: CrossAxisAlignment.center,
                                                             children: <Widget>[
                                                               Label(
-                                                                NL10ns.of(context).fee,
+                                                                _localizations.fee,
                                                                 color: DefaultTheme.primaryColor,
                                                                 type: LabelType.h4,
                                                                 textAlign: TextAlign.start,
                                                               ),
                                                               RotatedBox(
                                                                 quarterTurns: _showFeeLayout ? 2 : 0,
-                                                                child: loadAssetIconsImage('down', color: DefaultTheme.primaryColor, width: 20),
+                                                                child: assetIcon('down', color: DefaultTheme.primaryColor, width: 20),
                                                               ),
                                                             ],
                                                           ),
@@ -371,14 +374,14 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                               child: Container(
                                                                 width: 20,
                                                                 alignment: Alignment.centerRight,
-                                                                child: Label(NL10ns.of(context).nkn, type: LabelType.label),
+                                                                child: Label(_localizations.nkn, type: LabelType.label),
                                                               ),
                                                             ),
                                                             keyboardType: TextInputType.numberWithOptions(
                                                               decimal: true,
                                                             ),
                                                             textInputAction: TextInputAction.done,
-                                                            inputFormatters: [WhitelistingTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'))],
+                                                            inputFormatters: [FilteringTextInputFormatter(RegExp(r'^[0-9]+\.?[0-9]{0,8}'), allow: true)],
                                                           ),
                                                         ),
                                                       ],
@@ -395,17 +398,17 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                               children: <Widget>[
                                                                 Label(
-                                                                  NL10ns.of(context).slow,
+                                                                  _localizations.slow,
                                                                   type: LabelType.bodySmall,
                                                                   color: DefaultTheme.primaryColor,
                                                                 ),
                                                                 Label(
-                                                                  NL10ns.of(context).average,
+                                                                  _localizations.average,
                                                                   type: LabelType.bodySmall,
                                                                   color: DefaultTheme.primaryColor,
                                                                 ),
                                                                 Label(
-                                                                  NL10ns.of(context).fast,
+                                                                  _localizations.fast,
                                                                   type: LabelType.bodySmall,
                                                                   color: DefaultTheme.primaryColor,
                                                                 ),
@@ -439,9 +442,9 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                             child: Column(
                                               children: <Widget>[
                                                 Padding(
-                                                  padding: EdgeInsets.only(left: 30, right: 30),
+                                                  padding: EdgeInsets.only(left: 20, right: 20),
                                                   child: Button(
-                                                    text: NL10ns.of(context).continue_text,
+                                                    text: _localizations.continue_text,
                                                     disabled: !_formValid,
                                                     onPressed: next,
                                                   ),
@@ -455,9 +458,8 @@ class _SendNknScreenState extends State<SendNknScreen> with AccountDependsBloc {
                                   ),
                                 ),
                               );
-                            } else {
-                              return null;
                             }
+                            return Container();
                           },
                         ),
                       )

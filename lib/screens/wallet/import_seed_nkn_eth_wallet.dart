@@ -1,22 +1,22 @@
-import 'dart:async';
-import 'dart:convert';
-
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
-import 'package:nmobile/app.dart';
+import 'package:nkn_sdk_flutter/wallet.dart';
 import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/wallets_event.dart';
-import 'package:nmobile/components/button.dart';
+import 'package:nmobile/components/button/button.dart';
 import 'package:nmobile/components/label.dart';
 import 'package:nmobile/components/textbox.dart';
-import 'package:nmobile/event/eventbus.dart';
-import 'package:nmobile/helpers/validation.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/model/eth_erc20_token.dart';
-import 'package:nmobile/plugins/nkn_wallet.dart';
+import 'package:nmobile/generated/l10n.dart';
+import 'package:nmobile/helpers/nkn_erc20.dart';
+import 'package:nmobile/helpers/validator.dart';
 import 'package:nmobile/schemas/wallet.dart';
-import 'package:oktoast/oktoast.dart';
+import 'package:nmobile/theme/theme.dart';
+import 'package:nmobile/utils/assets.dart';
+import 'package:nmobile/utils/logger.dart';
+
+import '../scanner.dart';
 
 class ImportSeedWallet extends StatefulWidget {
   final WalletType type;
@@ -40,54 +40,48 @@ class _ImportSeedWalletState extends State<ImportSeedWallet> with SingleTickerPr
   var _seed;
   var _name;
   var _password;
-  StreamSubscription _qrSubscription;
 
   @override
   void initState() {
     super.initState();
     _walletsBloc = BlocProvider.of<WalletsBloc>(context);
-    _qrSubscription = eventBus.on<QMScan>().listen((event) {
-      setState(() {
-        _seedController.text = event.content;
-      });
-    });
   }
 
   @override
   void dispose() {
+    EasyLoading.dismiss();
     super.dispose();
-    _qrSubscription.cancel();
   }
 
   next() async {
     if ((_formKey.currentState as FormState).validate()) {
       (_formKey.currentState as FormState).save();
-      EasyLoading.show();
+      EasyLoading.show(maskType: EasyLoadingMaskType.black);
       try {
         if (widget.type == WalletType.nkn) {
-          String keystore = await NknWalletPlugin.createWallet(_seed, _password);
-          var json = jsonDecode(keystore);
-          String address = json['Address'];
-          _walletsBloc.add(AddWallet(WalletSchema(address: address, type: WalletSchema.NKN_WALLET, name: _name), keystore));
-        } else {
+          Wallet wallet = await Wallet.create(_seed, _password);
+          _walletsBloc.add(AddWallet(WalletSchema(address: wallet.address, type: WalletSchema.NKN_WALLET, name: _name), wallet.keystore));
+        } else if (widget.type == WalletType.eth) {
           final ethWallet = Ethereum.restoreWalletFromPrivateKey(name: _name, privateKey: _seed, password: _password);
-          Ethereum.saveWallet(ethWallet: ethWallet, walletsBloc: _walletsBloc);
+          final ethSchema = WalletSchema(address: (await ethWallet.address).hex, name: ethWallet.name, type: WalletSchema.ETH_WALLET);
+          _walletsBloc.add(AddWallet(ethSchema, ethWallet.keystore));
         }
         EasyLoading.dismiss();
-        showToast(NL10ns.of(context).success);
-        Navigator.pushReplacementNamed(context, AppScreen.routeName);
+        BotToast.showText(text: S.of(context).success);
+        Navigator.of(context).pop();
       } catch (e) {
         EasyLoading.dismiss();
-        showToast(e.message);
+        BotToast.showText(text: e.message);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    S _localizations = S.of(context);
     return Form(
       key: _formKey,
-      autovalidate: true,
+      autovalidateMode: AutovalidateMode.always,
       onChanged: () {
         setState(() {
           _formValid = (_formKey.currentState as FormState).validate();
@@ -118,7 +112,7 @@ class _ImportSeedWalletState extends State<ImportSeedWallet> with SingleTickerPr
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8, bottom: 8),
                                   child: Label(
-                                    NL10ns.of(context).import_with_seed_title,
+                                    _localizations.import_with_seed_title,
                                     type: LabelType.h2,
                                     textAlign: TextAlign.start,
                                   ),
@@ -126,35 +120,51 @@ class _ImportSeedWalletState extends State<ImportSeedWallet> with SingleTickerPr
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 32),
                                   child: Label(
-                                    NL10ns.of(context).import_with_seed_desc,
+                                    _localizations.import_with_seed_desc,
                                     type: LabelType.bodyRegular,
                                     textAlign: TextAlign.start,
                                     softWrap: true,
                                   ),
                                 ),
                                 Label(
-                                  NL10ns.of(context).seed,
+                                  _localizations.seed,
                                   type: LabelType.h4,
                                   textAlign: TextAlign.start,
                                 ),
                                 Textbox(
                                   controller: _seedController,
                                   focusNode: _seedFocusNode,
-                                  hintText: NL10ns.of(context).input_seed,
+                                  hintText: _localizations.input_seed,
                                   onSaved: (v) => _seed = v,
                                   onFieldSubmitted: (_) {
                                     FocusScope.of(context).requestFocus(_nameFocusNode);
                                   },
+                                  suffixIcon: GestureDetector(
+                                    onTap: () async {
+                                      var qrData = await Navigator.of(context).pushNamed(ScannerScreen.routeName);
+                                      logger.d(qrData);
+                                      _seed = _seedController.text = qrData;
+                                    },
+                                    child: Container(
+                                      width: 20,
+                                      alignment: Alignment.center,
+                                      child: assetIcon(
+                                        'scan',
+                                        width: 20,
+                                        color: _seedFocusNode.hasFocus ? DefaultTheme.primaryColor: DefaultTheme.fontColor2 ,
+                                      ),
+                                    ),
+                                  ),
                                   validator: Validator.of(context).seed(),
                                 ),
                                 Label(
-                                  NL10ns.of(context).wallet_name,
+                                  _localizations.wallet_name,
                                   type: LabelType.h4,
                                   textAlign: TextAlign.start,
                                 ),
                                 Textbox(
                                   focusNode: _nameFocusNode,
-                                  hintText: NL10ns.of(context).hint_enter_wallet_name,
+                                  hintText: _localizations.hint_enter_wallet_name,
                                   onSaved: (v) => _name = v,
                                   onFieldSubmitted: (_) {
                                     FocusScope.of(context).requestFocus(_passwordFocusNode);
@@ -163,14 +173,14 @@ class _ImportSeedWalletState extends State<ImportSeedWallet> with SingleTickerPr
                                   validator: Validator.of(context).walletName(),
                                 ),
                                 Label(
-                                  NL10ns.of(context).wallet_password,
+                                  _localizations.wallet_password,
                                   type: LabelType.h4,
                                   textAlign: TextAlign.start,
                                 ),
                                 Textbox(
                                   focusNode: _passwordFocusNode,
                                   controller: _passwordController,
-                                  hintText: NL10ns.of(context).input_password,
+                                  hintText: _localizations.input_password,
                                   onSaved: (v) => _password = v,
                                   onFieldSubmitted: (_) {
                                     FocusScope.of(context).requestFocus(_confirmPasswordFocusNode);
@@ -199,7 +209,7 @@ class _ImportSeedWalletState extends State<ImportSeedWallet> with SingleTickerPr
                     Padding(
                       padding: EdgeInsets.only(left: 30, right: 30),
                       child: Button(
-                        text: widget.type == WalletType.nkn ? NL10ns.of(context).import_nkn_wallet : NL10ns.of(context).import_ethereum_wallet,
+                        text: widget.type == WalletType.nkn ? _localizations.import_nkn_wallet : _localizations.import_ethereum_wallet,
                         disabled: !_formValid,
                         onPressed: next,
                       ),

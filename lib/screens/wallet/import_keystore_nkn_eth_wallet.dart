@@ -1,25 +1,23 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:nmobile/app.dart';
+import 'package:nkn_sdk_flutter/wallet.dart';
 import 'package:nmobile/blocs/wallet/wallets_bloc.dart';
 import 'package:nmobile/blocs/wallet/wallets_event.dart';
-import 'package:nmobile/components/button.dart';
+import 'package:nmobile/components/button/button.dart';
 import 'package:nmobile/components/label.dart';
 import 'package:nmobile/components/textbox.dart';
-import 'package:nmobile/helpers/validation.dart';
-import 'package:nmobile/l10n/localization_intl.dart';
-import 'package:nmobile/model/eth_erc20_token.dart';
-import 'package:nmobile/plugins/nkn_wallet.dart';
+import 'package:nmobile/consts/wallet_error.dart';
+import 'package:nmobile/generated/l10n.dart';
+import 'package:nmobile/helpers/nkn_erc20.dart';
+import 'package:nmobile/helpers/validator.dart';
 import 'package:nmobile/schemas/wallet.dart';
-import 'package:nmobile/utils/const_utils.dart';
-import 'package:oktoast/oktoast.dart';
 
 class ImportKeystoreWallet extends StatefulWidget {
   final WalletType type;
@@ -50,29 +48,36 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
     _walletsBloc = BlocProvider.of<WalletsBloc>(context);
   }
 
+  @override
+  void dispose() {
+    EasyLoading.dismiss();
+    super.dispose();
+  }
+
   next() async {
     if ((_formKey.currentState as FormState).validate()) {
       (_formKey.currentState as FormState).save();
-      EasyLoading.show();
+      EasyLoading.show(maskType: EasyLoadingMaskType.black);
       try {
         if (widget.type == WalletType.nkn) {
-          String keystoreJson = await NknWalletPlugin.restoreWallet(_keystore, _password);
-          var keystore = jsonDecode(keystoreJson);
-          String address = keystore['Address'];
-          _walletsBloc.add(AddWallet(WalletSchema(address: address, type: WalletSchema.NKN_WALLET, name: _name), keystoreJson));
-        } else {
+          Wallet wallet = await Wallet.restore(_keystore, _password);
+          var keystore = wallet.keystore;
+          String address = wallet.address;
+          _walletsBloc.add(AddWallet(WalletSchema(address: address, type: WalletSchema.NKN_WALLET, name: _name), keystore));
+        } else if (widget.type == WalletType.eth) {
           final ethWallet = Ethereum.restoreWallet(name: _name, keystore: _keystore, password: _password);
-          Ethereum.saveWallet(ethWallet: ethWallet, walletsBloc: _walletsBloc);
+          final ethSchema = WalletSchema(address: (await ethWallet.address).hex, name: ethWallet.name, type: WalletSchema.ETH_WALLET);
+          _walletsBloc.add(AddWallet(ethSchema, ethWallet.keystore));
         }
         EasyLoading.dismiss();
-        showToast(NL10ns.of(context).success);
-        Navigator.of(context).pushReplacementNamed(AppScreen.routeName);
+        BotToast.showText(text: S.of(context).success);
+        Navigator.of(context).pop();
       } catch (e) {
         EasyLoading.dismiss();
-        if (e.message == ConstUtils.WALLET_PASSWORD_ERROR) {
-          showToast(NL10ns.of(context).password_wrong);
+        if (e.message == WalletError.WALLET_PASSWORD_WRONG) {
+          BotToast.showText(text: S.of(context).password_wrong);
         } else {
-          showToast(e.message);
+          BotToast.showText(text: e.message);
         }
       }
     }
@@ -80,9 +85,10 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
 
   @override
   Widget build(BuildContext context) {
+    S _localizations = S.of(context);
     return Form(
       key: _formKey,
-      autovalidate: true,
+      autovalidateMode: AutovalidateMode.always,
       onChanged: () {
         setState(() {
           _formValid = (_formKey.currentState as FormState).validate();
@@ -113,7 +119,7 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8, bottom: 8),
                                   child: Label(
-                                    NL10ns.of(context).import_with_keystore_title,
+                                    _localizations.import_with_keystore_title,
                                     type: LabelType.h2,
                                     textAlign: TextAlign.start,
                                   ),
@@ -121,21 +127,21 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 32),
                                   child: Label(
-                                    NL10ns.of(context).import_with_keystore_desc,
+                                    _localizations.import_with_keystore_desc,
                                     type: LabelType.bodyRegular,
                                     textAlign: TextAlign.start,
                                     softWrap: true,
                                   ),
                                 ),
                                 Label(
-                                  NL10ns.of(context).keystore,
+                                  _localizations.keystore,
                                   type: LabelType.h4,
                                   textAlign: TextAlign.start,
                                 ),
                                 Textbox(
                                   multi: true,
                                   controller: _keystoreController,
-                                  hintText: NL10ns.of(context).input_keystore,
+                                  hintText: _localizations.input_keystore,
                                   focusNode: _keystoreFocusNode,
                                   onSaved: (v) => _keystore = v,
                                   onFieldSubmitted: (_) {
@@ -143,8 +149,9 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
                                   },
                                   suffixIcon: GestureDetector(
                                     onTap: () async {
-                                      File file = await FilePicker.getFile();
-                                      if (file != null) {
+                                      FilePickerResult result = await FilePicker.platform.pickFiles();
+                                      if (result != null) {
+                                        File file = File(result.files.single.path);
                                         _keystoreController.text = file.readAsStringSync();
                                       }
                                     },
@@ -160,13 +167,13 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
                                   validator: widget.type == WalletType.nkn ? Validator.of(context).keystore() : Validator.of(context).keystoreEth(),
                                 ),
                                 Label(
-                                  NL10ns.of(context).wallet_name,
+                                  _localizations.wallet_name,
                                   type: LabelType.h4,
                                   textAlign: TextAlign.start,
                                 ),
                                 Textbox(
                                   focusNode: _nameFocusNode,
-                                  hintText: NL10ns.of(context).hint_enter_wallet_name,
+                                  hintText: _localizations.hint_enter_wallet_name,
                                   onSaved: (v) => _name = v,
                                   onFieldSubmitted: (_) {
                                     FocusScope.of(context).requestFocus(_passwordFocusNode);
@@ -175,14 +182,14 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
                                   validator: Validator.of(context).walletName(),
                                 ),
                                 Label(
-                                  NL10ns.of(context).wallet_password,
+                                  _localizations.wallet_password,
                                   type: LabelType.h4,
                                   textAlign: TextAlign.start,
                                 ),
                                 Textbox(
                                   focusNode: _passwordFocusNode,
                                   controller: _passwordController,
-                                  hintText: NL10ns.of(context).input_password,
+                                  hintText: _localizations.input_password,
                                   onSaved: (v) => _password = v,
                                   onFieldSubmitted: (_) {
                                     FocusScope.of(context).requestFocus(_confirmPasswordFocusNode);
@@ -211,7 +218,7 @@ class _ImportKeystoreWalletState extends State<ImportKeystoreWallet> with Single
                     Padding(
                       padding: EdgeInsets.only(left: 30, right: 30),
                       child: Button(
-                        text: widget.type == WalletType.nkn ? NL10ns.of(context).import_nkn_wallet : NL10ns.of(context).import_ethereum_wallet,
+                        text: widget.type == WalletType.nkn ? _localizations.import_nkn_wallet : _localizations.import_ethereum_wallet,
                         disabled: !_formValid,
                         onPressed: next,
                       ),
