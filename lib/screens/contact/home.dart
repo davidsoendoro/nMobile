@@ -78,9 +78,6 @@ class _ContactHomeState extends State<ContactHome> {
   void initState() {
     super.initState();
     _contactBloc = BlocProvider.of<ContactBloc>(context);
-    _contactBloc.listen((state) async {
-      if (state is ContactLoading) {}
-    });
 
     _addContactSubscription = eventBus.on<AddContactEvent>().listen((event) {
       initAsync();

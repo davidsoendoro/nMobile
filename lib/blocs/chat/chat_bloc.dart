@@ -857,14 +857,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> with Tag {
               await ContactDataCenter.setOrUpdateProfileVersion(contact, data);
             } else if (data['responseType'] == RequestType.full) {
               await contact.setOrUpdateExtraProfile(data);
-              contactBloc.add(LoadContact(address: [contact.clientAddress]));
+              contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
             } else {
               /// fit Version before 1.1.0
               if (data['content'] != null &&
                   (data['content']['name'] != null ||
                       data['content']['avatar'] != null)) {
                 await contact.setOrUpdateExtraProfile(data);
-                contactBloc.add(LoadContact(address: [contact.clientAddress]));
+                contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
               } else {
                 await ContactDataCenter.setOrUpdateProfileVersion(
                     contact, data);
@@ -885,7 +885,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> with Tag {
         } else {
           await contact.setDeviceToken(data['content']['deviceToken']);
         }
-        contactBloc.add(LoadContact(address: [contact.clientAddress]));
+        contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
       }
       else {
         NLog.w('Wrong!!! MessageType unhandled___' +
@@ -925,7 +925,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> with Tag {
     }
     NLog.w('!!!!contact._checkBurnOptions ___' +
         message.deleteAfterSeconds.toString());
-    contactBloc.add(LoadContact(address: [contact.clientAddress]));
+    contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
   }
 
   Future<ContactSchema> _checkContactIfExists(String clientAddress) async {

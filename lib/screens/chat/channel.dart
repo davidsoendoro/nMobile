@@ -99,10 +99,6 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
       });
     }
 
-    _contactBloc.add(LoadContact(
-        address:
-        res.where((x) => !x.isSendMessage()).map((x) => x.from).toList()));
-
     if (currentTopic == null) {
       Navigator.pop(context);
       EasyLoading.dismiss();
@@ -195,9 +191,7 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
     if (res == null) {
       return;
     }
-    _contactBloc.add(LoadContact(
-        address:
-            res.where((x) => !x.isSendMessage()).map((x) => x.from).toList()));
+
     _chatBloc.add(RefreshMessageListEvent(target: targetId));
     if (res != null) {
       _skip += res.length;
@@ -268,7 +262,7 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
 
           if (updateMessage.isSendMessage() == false &&
               updateMessage.topic == targetId) {
-            _contactBloc.add(LoadContact(address: [updateMessage.from]));
+            _contactBloc.add(RefreshContactInfoEvent(updateMessage.from));
 
             if (updateMessage.contentType == ContentType.text ||
                 updateMessage.contentType == ContentType.textExtension ||
@@ -583,18 +577,18 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
                           return BlocBuilder<ContactBloc, ContactState>(
                               builder: (context, state) {
                                 ContactSchema contact;
-                                if (state is ContactLoaded) {
-                                  if (contact == null) {
-                                    contact =
-                                        state.getContactByAddress(message.from);
-                                    if (message.from != null &&
-                                        message.from.length > 6) {
-                                      fromShow = message.from.substring(0, 6);
-                                    }
-                                  } else {
-                                    fromShow = contact.getShowName;
-                                  }
-                                }
+                                // if (state is ContactLoaded) {
+                                //   if (contact == null) {
+                                //     contact =
+                                //         state.getContactByAddress(message.from);
+                                //     if (message.from != null &&
+                                //         message.from.length > 6) {
+                                //       fromShow = message.from.substring(0, 6);
+                                //     }
+                                //   } else {
+                                //     fromShow = contact.getShowName;
+                                //   }
+                                // }
                                 if (message.contentType ==
                                     ContentType.eventSubscribe) {
                                   return ChatSystem(

@@ -11,7 +11,7 @@ class ContactBloc extends Bloc<ContactEvent, ContactState> {
 
   @override
   Stream<ContactState> mapEventToState(ContactEvent event) async* {
-    if (event is LoadContact) {
+    if (event is LoadContactListEvent) {
       yield* _mapLoadContactToState(event);
     } else if (event is UpdateUserInfoEvent) {
       yield* _mapUpdateUserInfoState(event);
@@ -20,9 +20,9 @@ class ContactBloc extends Bloc<ContactEvent, ContactState> {
     }
   }
 
-  Stream<ContactState> _mapLoadContactToState(LoadContact event) async* {
-    var contacts = await _queryContactsByAddress(event.address);
-    yield ContactLoaded(contacts);
+  Stream<ContactState> _mapLoadContactToState(LoadContactListEvent event) async* {
+    var contacts = await _queryContactsByAddress(event.addressList);
+    yield ContactLoadedState(contacts);
   }
 
   Stream<ContactState> _mapUpdateUserInfoState(
@@ -41,8 +41,8 @@ class ContactBloc extends Bloc<ContactEvent, ContactState> {
   Future<List<ContactSchema>> _queryContactsByAddress(
       List<String> addressList) async {
     List<ContactSchema> savedList = <ContactSchema>[];
-    if (state is ContactLoaded) {
-      savedList = List.from((state as ContactLoaded).contacts);
+    if (state is ContactLoadedState) {
+      savedList = List.from((state as ContactLoadedState).contacts);
     }
 
     /// Use this to set memory cache of contacts query
