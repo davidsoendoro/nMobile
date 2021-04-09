@@ -13,7 +13,6 @@ import 'package:nmobile/blocs/chat/chat_bloc.dart';
 import 'package:nmobile/blocs/chat/chat_event.dart';
 import 'package:nmobile/blocs/chat/chat_state.dart';
 import 'package:nmobile/blocs/contact/contact_bloc.dart';
-import 'package:nmobile/blocs/contact/contact_event.dart';
 import 'package:nmobile/blocs/contact/contact_state.dart';
 import 'package:nmobile/blocs/nkn_client_caller.dart';
 import 'package:nmobile/components/CommonUI.dart';
@@ -33,7 +32,6 @@ import 'package:nmobile/helpers/nkn_image_utils.dart';
 import 'package:nmobile/helpers/utils.dart';
 import 'package:nmobile/l10n/localization_intl.dart';
 import 'package:nmobile/model/datacenter/group_data_center.dart';
-import 'package:nmobile/model/entity/subscriber_repo.dart';
 import 'package:nmobile/model/entity/topic_repo.dart';
 import 'package:nmobile/model/entity/chat.dart';
 import 'package:nmobile/model/entity/contact.dart';
@@ -61,7 +59,6 @@ class ChatGroupPage extends StatefulWidget {
 
 class _ChatGroupPageState extends State<ChatGroupPage> {
   ChatBloc _chatBloc;
-  ContactBloc _contactBloc;
   ChannelBloc _channelBloc;
 
   String targetId;
@@ -98,10 +95,6 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
         _messages = res;
       });
     }
-
-    _contactBloc.add(LoadContact(
-        address:
-        res.where((x) => !x.isSendMessage()).map((x) => x.from).toList()));
 
     if (currentTopic == null) {
       Navigator.pop(context);
@@ -196,9 +189,7 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
     if (res == null) {
       return;
     }
-    _contactBloc.add(LoadContact(
-        address:
-            res.where((x) => !x.isSendMessage()).map((x) => x.from).toList()));
+
     _chatBloc.add(RefreshMessageListEvent(target: targetId));
     if (res != null) {
       _skip += res.length;
@@ -216,7 +207,6 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
 
     currentTopic = widget.arguments.topic;
 
-    _contactBloc = BlocProvider.of<ContactBloc>(context);
     _chatBloc = BlocProvider.of<ChatBloc>(context);
     _channelBloc = BlocProvider.of<ChannelBloc>(context);
 
@@ -269,8 +259,6 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
 
           if (updateMessage.isSendMessage() == false &&
               updateMessage.topic == targetId) {
-            _contactBloc.add(LoadContact(address: [updateMessage.from]));
-
             if (updateMessage.contentType == ContentType.text ||
                 updateMessage.contentType == ContentType.textExtension ||
                 updateMessage.contentType == ContentType.nknImage ||
@@ -584,7 +572,7 @@ class _ChatGroupPageState extends State<ChatGroupPage> {
                           return BlocBuilder<ContactBloc, ContactState>(
                               builder: (context, state) {
                                 ContactSchema contact;
-                                if (state is ContactLoaded) {
+                                if (state is ContactLoadedState) {
                                   if (contact == null) {
                                     contact =
                                         state.getContactByAddress(message.from);

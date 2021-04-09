@@ -14,9 +14,9 @@ import 'package:nmobile/blocs/auth/auth_state.dart';
 import 'package:nmobile/blocs/chat/chat_bloc.dart';
 import 'package:nmobile/blocs/chat/chat_state.dart';
 
-import 'package:nmobile/blocs/contact/contact_bloc.dart';
-import 'package:nmobile/blocs/contact/contact_event.dart';
-import 'package:nmobile/blocs/contact/contact_state.dart';
+import 'package:nmobile/blocs/message/message_bloc.dart';
+import 'package:nmobile/blocs/message/message_event.dart';
+import 'package:nmobile/blocs/message/message_state.dart';
 import 'package:nmobile/blocs/nkn_client_caller.dart';
 import 'package:nmobile/components/CommonUI.dart';
 import 'package:nmobile/components/button.dart';
@@ -32,13 +32,13 @@ import 'package:nmobile/helpers/utils.dart';
 import 'package:nmobile/l10n/localization_intl.dart';
 import 'package:nmobile/model/datacenter/contact_data_center.dart';
 import 'package:nmobile/model/datacenter/group_data_center.dart';
+import 'package:nmobile/model/entity/MessageListModel.dart';
 import 'package:nmobile/model/entity/topic_repo.dart';
 import 'package:nmobile/model/popular_channel.dart';
 import 'package:nmobile/model/entity/chat.dart';
 import 'package:nmobile/model/entity/contact.dart';
 import 'package:nmobile/model/group_chat_helper.dart';
 import 'package:nmobile/model/entity/message.dart';
-import 'package:nmobile/model/entity/message_item.dart';
 import 'package:nmobile/screens/chat/authentication_helper.dart';
 import 'package:nmobile/screens/chat/channel.dart';
 import 'package:nmobile/screens/chat/message.dart';
@@ -59,11 +59,11 @@ class MessagesTab extends StatefulWidget {
 
 class _MessagesTabState extends State<MessagesTab>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin, Tag {
-  List<MessageItem> _messagesList = <MessageItem>[];
+  List<MessageListModel> _messagesList = <MessageListModel>[];
 
   AuthBloc _authBloc;
   ChatBloc _chatBloc;
-  ContactBloc _contactBloc;
+  MessageBloc _messageBloc;
 
   StreamSubscription _chatSubscription;
   ScrollController _scrollController = ScrollController();
@@ -73,6 +73,8 @@ class _MessagesTabState extends State<MessagesTab>
   bool isHideTip = false;
 
   int timeBegin = 0;
+
+  int startIndex = 0;
 
   @override
   void initState() {
@@ -85,7 +87,7 @@ class _MessagesTabState extends State<MessagesTab>
 
     _authBloc = BlocProvider.of<AuthBloc>(context);
     _chatBloc = BlocProvider.of<ChatBloc>(context);
-    _contactBloc = BlocProvider.of<ContactBloc>(context);
+    _messageBloc = BlocProvider.of<MessageBloc>(context);
 
     _startRefreshMessage();
 
@@ -238,37 +240,23 @@ class _MessagesTabState extends State<MessagesTab>
   _startRefreshMessage() async {
     _updateTopicBlock();
 
-    int messageCount = 20;
-    if (_messagesList.isNotEmpty && _messagesList.length > 20) {
-      messageCount = _messagesList.length;
-    }
-    var res = await MessageItem.getLastMessageList(0, messageCount);
-    if (res == null) return;
-
-    NLog.w('_startRefreshMessage got Message___' + res.length.toString());
-
-    _contactBloc.add(LoadContact(
-        address:
-            res.map((x) => x.topic != null ? x.sender : x.targetId).toList()));
-    _messagesList = (res);
+    _messagesList.clear();
+    startIndex = 0;
+    _messageBloc.add(FetchMessageListEvent(startIndex));
   }
 
   Future _loadMore() async {
     if (Global.clientCreated == false) {
       return;
     }
-    int startIndex = _messagesList.length;
-    var res = await MessageItem.getLastMessageList(startIndex, 20);
-    if (res != null) {
-      _contactBloc.add(LoadContact(
-          address: res
-              .map((x) => x.topic != null ? x.sender : x.targetId)
-              .toList()));
-      NLog.w('_loadMore got Message___' + res.length.toString());
-      setState(() {
-        _messagesList.addAll(res);
-      });
+    if (startIndex != _messagesList.length){
+      startIndex = _messagesList.length;
     }
+    else{
+      _messageBloc.add(FetchMessageListEndEvent());
+    }
+    NLog.w('_loadMore startIndex is____'+startIndex.toString());
+    _messageBloc.add(FetchMessageListEvent(startIndex));
   }
 
   @override
@@ -278,26 +266,36 @@ class _MessagesTabState extends State<MessagesTab>
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         if (authState is AuthToUserState) {
-          _messagesList.clear();
-          _startRefreshMessage();
+          _updateTopicBlock();
           _authBloc.add(AuthToFrontEvent());
         }
         return BlocBuilder<ChatBloc, ChatState>(
           builder: (context, chatState) {
             if (chatState is MessageUpdateState) {
-              _startRefreshMessage();
+              _updateTopicBlock();
             }
-            return BlocBuilder<ContactBloc, ContactState>(
-              builder: (context, contactState) {
-                if (contactState is ContactLoaded) {
-                  if (_messagesList != null && _messagesList.length > 0) {
-                    _messagesList.sort((a, b) => a.isTop
-                        ? (b.isTop ? -1 /*hold position original*/ : -1)
-                        : (b.isTop
-                            ? 1
-                            : b.lastReceiveTime.compareTo(a.lastReceiveTime)));
-                    return _messageListWidget();
+            return BlocBuilder<MessageBloc, MessageState>(
+              builder: (context, messageState){
+                NLog.w('Message State is____'+messageState.toString());
+                if (messageState is FetchMessageListState){
+                  if (_messagesList == null){
+                    _messagesList = new List();
                   }
+                  if (startIndex == 0){
+                    NLog.w("StartIndex is -----");
+                    _messagesList = messageState.messageList;
+                  }
+                  else{
+                    if (messageState.messageList != null){
+                      if (_messagesList.length < startIndex+messageState.messageList.length){
+                        _messagesList += messageState.messageList;
+                      }
+                    }
+                  }
+                  return _messageListWidget();
+                }
+                else if (messageState is FetchMessageListEndState){
+                  return _messageListWidget();
                 }
                 return _noMessageWidget();
               },
@@ -308,7 +306,7 @@ class _MessagesTabState extends State<MessagesTab>
     );
   }
 
-  showMenu(MessageItem item, int index) {
+  showMenu(MessageListModel item, int index) {
     showDialog<Null>(
       context: context,
       builder: (BuildContext context) {
@@ -354,7 +352,7 @@ class _MessagesTabState extends State<MessagesTab>
               ).pad(t: 4, b: 8),
               onPressed: () {
                 Navigator.of(context).pop();
-                MessageItem.deleteTargetChat(item.targetId).then((numChanges) {
+                MessageListModel.deleteTargetChat(item.targetId).then((numChanges) {
                   if (numChanges > 0) {
                     setState(() {
                       _messagesList.remove(item);
@@ -494,25 +492,17 @@ class _MessagesTabState extends State<MessagesTab>
               itemCount: _messagesList.length,
               itemBuilder: (BuildContext context, int index) {
                 var item = _messagesList[index];
-                return BlocBuilder<ContactBloc, ContactState>(
-                  builder: (context, state) {
-                    if (state is ContactLoaded) {
-                      Widget widget;
-                      if (item.topic != null) {
-                        widget = getTopicItemView(item, state);
-                      } else {
-                        widget = getSingleChatItemView(item, state);
-                      }
-                      return InkWell(
-                        onLongPress: () {
-                          showMenu(item, index);
-                        },
-                        child: widget,
-                      );
-                    } else {
-                      return Container();
-                    }
+                Widget widget;
+                if (item.topic != null) {
+                  widget = getTopicItemView(item);
+                } else {
+                  widget = getSingleChatItemView(item);
+                }
+                return InkWell(
+                  onLongPress: () {
+                    showMenu(item, index);
                   },
+                  child: widget,
                 );
               },
             ),
@@ -689,12 +679,8 @@ class _MessagesTabState extends State<MessagesTab>
     );
   }
 
-  Widget getTopicItemView(MessageItem item, ContactLoaded state) {
-    var contact = state.getContactByAddress(item.sender);
-    if (contact == null) {
-      return Container();
-    }
-
+  Widget getTopicItemView(MessageListModel item) {
+    ContactSchema contact = item.contact;
     Widget contentWidget;
     LabelType bottomType = LabelType.bodySmall;
     String draft = '';
@@ -827,7 +813,7 @@ class _MessagesTabState extends State<MessagesTab>
     );
   }
 
-  Widget _unReadWidget(MessageItem item) {
+  Widget _unReadWidget(MessageListModel item) {
     String countStr = item.notReadCount.toString();
     if (item.notReadCount > 999) {
       countStr = '999+';
@@ -882,14 +868,10 @@ class _MessagesTabState extends State<MessagesTab>
     return Container();
   }
 
-  Widget getSingleChatItemView(MessageItem item, ContactLoaded state) {
-    var contact = state.getContactByAddress(item.targetId);
-
-    if (contact == null) return Container();
-
-    LabelType topType = LabelType.h3;
+  Widget getSingleChatItemView(MessageListModel item) {
     LabelType bottomType = LabelType.bodySmall;
 
+    ContactSchema contact = item.contact;
     Widget contentWidget;
     String draft = LocalStorage.getChatUnSendContentFromId(
         NKNClientCaller.currentChatId, item.targetId);

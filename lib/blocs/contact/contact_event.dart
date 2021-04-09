@@ -8,9 +8,9 @@ abstract class ContactEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class LoadContact extends ContactEvent {
-  final List<String> address;
-  const LoadContact({this.address});
+class LoadContactListEvent extends ContactEvent {
+  final List<String> addressList;
+  const LoadContactListEvent(this.addressList);
 }
 
 class LoadContactInfoEvent extends ContactEvent {
@@ -18,9 +18,9 @@ class LoadContactInfoEvent extends ContactEvent {
   const LoadContactInfoEvent(this.address);
 }
 
-class RefreshContact extends ContactEvent {
-  final int id;
-  const RefreshContact({this.id});
+class RefreshContactInfoEvent extends ContactEvent{
+  final String address;
+  const RefreshContactInfoEvent(this.address);
 }
 
 class UpdateUserInfoEvent extends ContactEvent {

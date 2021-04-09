@@ -1,35 +1,36 @@
+
 import 'package:nmobile/model/db/nkn_data_manager.dart';
-import 'package:nmobile/model/entity/topic_repo.dart';
 import 'package:nmobile/model/entity/contact.dart';
 import 'package:nmobile/model/entity/message.dart';
-import 'package:nmobile/utils/log_tag.dart';
+import 'package:nmobile/model/entity/topic_repo.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
-class MessageItem {
-  static LOG _log = LOG('MessageItem'.tag());
-
+class MessageListModel {
   String targetId;
   String sender;
-  Topic topic;
   String content;
   String contentType;
   DateTime lastReceiveTime;
   int notReadCount;
   bool isTop;
 
-  MessageItem({
+  Topic topic;
+  ContactSchema contact;
+
+  MessageListModel({
     this.targetId,
     this.sender,
     this.content,
-    this.topic,
     this.contentType,
     this.lastReceiveTime,
     this.notReadCount,
     this.isTop = false,
+    this.topic,
+    this.contact
   });
 
-  static Future<MessageItem> parseEntity(Map e) async {
-    var res = MessageItem(
+  static Future<MessageListModel> parseEntity(Map e) async {
+    var res = MessageListModel(
       targetId: e['target_id'],
       sender: e['sender'],
       content: e['content'],
@@ -40,28 +41,32 @@ class MessageItem {
     if (e['topic'] != null) {
       final repoTopic = TopicRepo();
       res.topic = await repoTopic.getTopicByName(e['topic']);
+      res.contact = await ContactSchema.fetchContactByAddress(res.sender);
+
       res.isTop = res.topic?.isTop ?? false;
     } else {
       res.isTop = await ContactSchema.getIsTop(res.targetId);
+      res.contact = await ContactSchema.fetchContactByAddress(res.targetId);
     }
     return res;
   }
 
-  static Future<List<MessageItem>> getLastMessageList(
+  static Future<List<MessageListModel>> getLastMessageList(
       int start, int length) async {
     Database cdb = await NKNDataManager().currentDatabase();
     if (cdb == null) {
       return null;
     }
+
     var res = await cdb.query(
-      '${MessageSchema.tableName} as m',
+    '${MessageSchema.tableName} as m',
       columns: [
         'm.*',
-        '(SELECT COUNT(id) from ${MessageSchema.tableName} WHERE target_id = m.target_id AND is_outbound = 0 AND is_read = 0 AND NOT type = "nknOnePiece") as not_read',
+        '(SELECT COUNT(id) from ${MessageSchema.tableName} WHERE target_id = m.target_id AND is_outbound = 0 AND is_read = 0 AND NOT type = "event:subscribe" AND NOT type = "nknOnePiece") as not_read',
         'MAX(send_time)'
       ],
       where:
-          "type = ? or type = ? or type = ? or type = ? or type = ? or type = ? or type = ?",
+      "type = ? or type = ? or type = ? or type = ? or type = ? or type = ? or type = ?",
       whereArgs: [
         ContentType.text,
         ContentType.textExtension,
@@ -77,10 +82,10 @@ class MessageItem {
       offset: start,
     );
 
-    List<MessageItem> list = <MessageItem>[];
+    List<MessageListModel> list = <MessageListModel>[];
     for (var i = 0, length = res.length; i < length; i++) {
       var item = res[i];
-      list.add(await MessageItem.parseEntity(item));
+      list.add(await MessageListModel.parseEntity(item));
     }
     if (list.length > 0) {
       return list;

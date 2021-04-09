@@ -7,11 +7,9 @@ abstract class ContactState {
 
 class ContactNotLoad extends ContactState {}
 
-class ContactLoading extends ContactState {}
-
-class ContactLoaded extends ContactState {
+class ContactLoadedState extends ContactState {
   final List<ContactSchema> contacts;
-  const ContactLoaded([this.contacts = const []]);
+  const ContactLoadedState([this.contacts = const []]);
 
   ContactSchema getContactByAddress(String address) {
     if (contacts == null || contacts.length == 0) {

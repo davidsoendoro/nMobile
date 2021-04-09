@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:nmobile/blocs/chat/chat_event.dart';
 import 'package:nmobile/blocs/chat/chat_state.dart';
 import 'package:nmobile/blocs/contact/contact_bloc.dart';
@@ -857,14 +855,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> with Tag {
               await ContactDataCenter.setOrUpdateProfileVersion(contact, data);
             } else if (data['responseType'] == RequestType.full) {
               await contact.setOrUpdateExtraProfile(data);
-              contactBloc.add(LoadContact(address: [contact.clientAddress]));
+              contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
             } else {
               /// fit Version before 1.1.0
               if (data['content'] != null &&
                   (data['content']['name'] != null ||
                       data['content']['avatar'] != null)) {
                 await contact.setOrUpdateExtraProfile(data);
-                contactBloc.add(LoadContact(address: [contact.clientAddress]));
+                contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
               } else {
                 await ContactDataCenter.setOrUpdateProfileVersion(
                     contact, data);
@@ -885,7 +883,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> with Tag {
         } else {
           await contact.setDeviceToken(data['content']['deviceToken']);
         }
-        contactBloc.add(LoadContact(address: [contact.clientAddress]));
+        contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
       }
       else {
         NLog.w('Wrong!!! MessageType unhandled___' +
@@ -925,7 +923,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> with Tag {
     }
     NLog.w('!!!!contact._checkBurnOptions ___' +
         message.deleteAfterSeconds.toString());
-    contactBloc.add(LoadContact(address: [contact.clientAddress]));
+    contactBloc.add(RefreshContactInfoEvent(contact.clientAddress));
   }
 
   Future<ContactSchema> _checkContactIfExists(String clientAddress) async {

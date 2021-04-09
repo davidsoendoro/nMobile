@@ -716,7 +716,6 @@ class GroupDataCenter{
       }
 
       for (String chatId in subscribers.keys) {
-        NLog.w('pullSubscribersPublicChannel sub is___'+chatId.toString());
         await GroupDataCenter.checkContactIfExists(chatId);
         Subscriber sub = Subscriber(
             id: 0,
