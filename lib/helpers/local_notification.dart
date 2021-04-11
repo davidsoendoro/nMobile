@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
@@ -57,7 +56,7 @@ class LocalNotification {
       onDidReceiveLocalNotification: _onDidReceiveLocalNotification,
     );
     var initializationSettings = InitializationSettings(
-        initializationSettingsAndroid, initializationSettingsIOS);
+        android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
     await _flutterLocalNotificationsPlugin.initialize(initializationSettings,
         onSelectNotification: (payload) async {
       _flutterLocalNotificationsPlugin.cancelAll();
@@ -84,7 +83,7 @@ class LocalNotification {
         'channel description',
         vibrationPattern: Int64List.fromList([0, 30, 100, 30]));
     var platformChannelSpecifics = NotificationDetails(
-        androidNotificationDetails, iOSPlatformChannelSpecifics);
+        android: androidNotificationDetails, iOS: iOSPlatformChannelSpecifics);
     try {
       _log.d(
           'messageNotification | Global.appContext: ${Global.appContext == null ? null : 'instance'}');

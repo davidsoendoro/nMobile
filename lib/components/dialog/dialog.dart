@@ -5,7 +5,8 @@ Future<T> showTransitionDialog<T>({
   bool barrierDismissible = true,
   WidgetBuilder builder,
 }) {
-  final ThemeData theme = Theme.of(context, shadowThemeOnly: true);
+  // final ThemeData theme = Theme.of(context, shadowThemeOnly: true);
+  final ThemeData theme = Theme.of(context);
 
   return showGeneralDialog(
     context: context,

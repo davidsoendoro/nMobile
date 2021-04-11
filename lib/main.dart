@@ -157,54 +157,52 @@ class AppState extends State<App> with WidgetsBindingObserver, Tag {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: providers,
-      child: BotToastInit(
-        child: BlocBuilder<GlobalBloc, GlobalState>(builder: (context, state) {
-          return OKToast(
-            position: ToastPosition.bottom,
-            backgroundColor: Colors.black54,
-            radius: 100,
-            textPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 14),
-            child: MaterialApp(
-              builder: (context, child) {
-                return FlutterEasyLoading(child: child);
-              },
-              navigatorObservers: [
-                BotToastNavigatorObserver(),
-                RouteUtils.routeObserver
-              ],
-              onGenerateTitle: (context) {
-                return NL10ns.of(context).title;
-              },
-              onGenerateRoute: onGenerateRoute,
-              title: 'nMobile',
-              theme: ThemeData(
-                primarySwatch: Colors.blue,
-                primaryColor: DefaultTheme.primaryColor,
-                sliderTheme: SliderThemeData(
-                  overlayShape: RoundSliderOverlayShape(overlayRadius: 18),
-                  trackHeight: 8,
-                  tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 0),
-                  // thumbShape: SliderThemeShape(),
-                ),
+      child: BlocBuilder<GlobalBloc, GlobalState>(builder: (context, state) {
+        return OKToast(
+          position: ToastPosition.bottom,
+          backgroundColor: Colors.black54,
+          radius: 100,
+          textPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+          child: MaterialApp(
+            builder: (context, child) {
+              return FlutterEasyLoading(child: child);
+            },
+            navigatorObservers: [
+              BotToastNavigatorObserver(),
+              RouteUtils.routeObserver
+            ],
+            onGenerateTitle: (context) {
+              return NL10ns.of(context).title;
+            },
+            onGenerateRoute: onGenerateRoute,
+            title: 'nMobile',
+            theme: ThemeData(
+              primarySwatch: Colors.blue,
+              primaryColor: DefaultTheme.primaryColor,
+              sliderTheme: SliderThemeData(
+                overlayShape: RoundSliderOverlayShape(overlayRadius: 18),
+                trackHeight: 8,
+                tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 0),
+                // thumbShape: SliderThemeShape(),
               ),
-              home: AppScreen(0),
-              locale: Global.locale != null && Global.locale != 'auto'
-                  ? Locale.fromSubtags(languageCode: Global.locale)
-                  : null,
-              localizationsDelegates: [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-                NMobileLocalizationsDelegate(),
-              ],
-              supportedLocales: [
-                const Locale('en'),
-                const Locale.fromSubtags(languageCode: 'zh'),
-              ],
             ),
-          );
-        }),
-      ),
+            home: AppScreen(0),
+            locale: Global.locale != null && Global.locale != 'auto'
+                ? Locale.fromSubtags(languageCode: Global.locale)
+                : null,
+            localizationsDelegates: [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              NMobileLocalizationsDelegate(),
+            ],
+            supportedLocales: [
+              const Locale('en'),
+              const Locale.fromSubtags(languageCode: 'zh'),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

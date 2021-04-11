@@ -35,7 +35,7 @@ dependencies:
   flutter_aes_ecb_pkcs5: ^0.1.1
   local_auth: 0.6.3+3
   get_it: ^3.1.0
-  bs58check: ^1.0.1
+  bs58check: ^1.0.2
   orientation: ^1.1.0
   sqflite_sqlcipher: 1.0.0+5
   path: ^1.6.4
@@ -45,12 +45,12 @@ dependencies:
   package_info: ^0.4.0+13
   bloc: ^3.0.0
   flutter_bloc: ^3.2.0
-  bot_toast: ^2.2.1
+  bot_toast: ^4.0.0
   equatable: ^1.1.0
   qr_flutter: ^3.2.0
   share: ^0.6.3+6
   esys_flutter_share: ^1.0.2
-  flutter_local_notifications: ^1.2.1
+  flutter_local_notifications: ^5.0.0
   badges: ^1.1.1
   flutter_app_badger: ^1.1.2
   popup_menu: ^1.0.5
@@ -62,7 +62,7 @@ dependencies:
   image_cropper: ^1.2.1
   flutter_native_image: ^0.0.5+2
   common_utils: ^1.1.1
-  flustars: ^0.2.5+1
+  flustars: ^2.0.0
   flutter_screenutil: ^1.1.0
   flutter_swiper: ^1.1.6
   cached_network_image: ^2.0.0-rc
@@ -148,3 +148,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+dependency_overrides:
+  intl: ^0.17.0
+  synchronized: ^3.0.0
+  path_provider: ^2.0.0
+  common_utils: ^2.0.2
+  crypto: ^3.0.0
+  convert: ^3.0.0
+  shared_preferences: ^2.0.3
+  plugin_platform_interface: ^2.0.0
